@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency", "sharp-dependency\sharp-dependency.csproj", "{5DB4EE45-FC52-475B-ADAE-B8AD85E87BB5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency.UnitTests", "..\tests\sharp-dependency.UnitTests\sharp-dependency.UnitTests.csproj", "{77E869CF-F389-4B32-8321-4BBC18CC40A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{5DB4EE45-FC52-475B-ADAE-B8AD85E87BB5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5DB4EE45-FC52-475B-ADAE-B8AD85E87BB5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5DB4EE45-FC52-475B-ADAE-B8AD85E87BB5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77E869CF-F389-4B32-8321-4BBC18CC40A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77E869CF-F389-4B32-8321-4BBC18CC40A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77E869CF-F389-4B32-8321-4BBC18CC40A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77E869CF-F389-4B32-8321-4BBC18CC40A2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
