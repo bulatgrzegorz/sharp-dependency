@@ -1,13 +1,104 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
-using Microsoft.Extensions.Configuration;
+using NuGet.Versioning;
 
-Console.WriteLine("Program");
+Console.WriteLine();
+
+
+class OnPremiseNugetPackageSourceManger
+{
+    private static readonly XName XmlEntryName = XName.Get("entry", "http://www.w3.org/2005/Atom");
+    private static readonly XName XmlLinkName = XName.Get("link", "http://www.w3.org/2005/Atom");
+    private static readonly XName XmlPropertiesName = XName.Get("properties", "http://schemas.microsoft.com/ado/2007/08/dataservices/metadata");
+    private static readonly XName XmlVersionName = XName.Get("Version", "http://schemas.microsoft.com/ado/2007/08/dataservices");
+    
+    private readonly HttpClient _httpClient;
+
+    public OnPremiseNugetPackageSourceManger(string address, string token)
+    {
+        _httpClient = new HttpClient(){BaseAddress = new Uri(address)};
+        _httpClient.DefaultRequestHeaders.Authorization = AuthenticationHeaderValue.Parse($"Bearer {token}");
+    }
+    
+    public async Task<string?> GetLatestPackageVersionsV2(string packageId, bool includePrerelease = false)
+    {
+        using var httpResponse = await _httpClient.GetAsync($"FindPackagesById()?id='{packageId}'&semVerLevel=2.0.0");
+        await using var responseStream = await httpResponse.Content.ReadAsStreamAsync();
+
+        var xml = await XElement.LoadAsync(responseStream, LoadOptions.None, CancellationToken.None);
+        
+        var nextLink = xml.Elements(XmlLinkName).FirstOrDefault(x => x.Attribute("rel")?.Value == "next")?.Attribute("href")?.Value;
+        while (nextLink is not null)
+        {
+            using var nextLinkHttpResponse = await _httpClient.GetAsync(nextLink);
+            await using var nextLinkResponseStream = await nextLinkHttpResponse.Content.ReadAsStreamAsync();
+
+            var nextLinkXml = await XElement.LoadAsync(nextLinkResponseStream, LoadOptions.None, CancellationToken.None);
+            nextLink = nextLinkXml.Elements(XmlLinkName).FirstOrDefault(x => x.Attribute("rel")?.Value == "next")?.Attribute("href")?.Value;
+
+            xml = nextLinkXml;
+        }
+        
+        var versions = xml.Elements(XmlEntryName).Select(x => x.Element(XmlPropertiesName)).Select(x => x?.Element(XmlVersionName)?.Value).ToList();
+        if (!includePrerelease)
+        {
+            versions = versions.Where(x => x is not null && NuGetVersion.TryParse(x, out var nugetVersion) && !nugetVersion.IsPrerelease).ToList();
+        }
+        
+        return versions[^1];
+    }
+}
+
+class NugetPackageSourceManger
+{
+    private readonly HttpClient _httpClient;
+
+    public NugetPackageSourceManger()
+    {
+        _httpClient = new HttpClient(){BaseAddress = new Uri("https://api.nuget.org/")};
+    }
+    
+    public async Task<string?> GetLatestPackageVersions(string packageId, bool includePrerelease = false)
+    {
+        using var response = await _httpClient.GetAsync($"v3-flatcontainer/{packageId.ToLowerInvariant()}/index.json");
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            Console.WriteLine("ERROR: Could not find package with id: {0} on nuget", packageId);
+
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var getPackageMetadataResponse = await response.Content.ReadFromJsonAsync<GetPackageMetadataResponse>();
+        if (getPackageMetadataResponse is null)
+        {
+            var responseString = response.Content.ReadAsStringAsync();
+            Console.WriteLine("ERROR: Could not deserialize response from nuget for package with id: {0}. Response: {1}{2}", packageId, Environment.NewLine, responseString);
+
+            return null;
+        }
+        
+        var versions = getPackageMetadataResponse.Versions.ToList();
+        if (!includePrerelease)
+        {
+            versions = versions.Where(x => NuGetVersion.TryParse(x, out var nugetVersion) && !nugetVersion.IsPrerelease).ToList();
+        }
+
+        return versions[^1];
+    }
+    
+    private class GetPackageMetadataResponse
+    {
+        public IEnumerable<string> Versions { get; set; }
+    }
+}
 
 public partial class SolutionFileParser
 {
