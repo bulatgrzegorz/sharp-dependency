@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency", "sharp-d
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency.UnitTests", "..\tests\sharp-dependency.UnitTests\sharp-dependency.UnitTests.csproj", "{77E869CF-F389-4B32-8321-4BBC18CC40A2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency.cli", "sharp-dependency.cli\sharp-dependency.cli.csproj", "{E87FF0F7-7348-4554-8F7B-0B54E5274537}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{77E869CF-F389-4B32-8321-4BBC18CC40A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{77E869CF-F389-4B32-8321-4BBC18CC40A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{77E869CF-F389-4B32-8321-4BBC18CC40A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E87FF0F7-7348-4554-8F7B-0B54E5274537}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E87FF0F7-7348-4554-8F7B-0B54E5274537}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E87FF0F7-7348-4554-8F7B-0B54E5274537}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E87FF0F7-7348-4554-8F7B-0B54E5274537}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

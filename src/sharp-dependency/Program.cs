@@ -1,17 +1,30 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
+using Microsoft.Extensions.Configuration;
+using NuGet.Common;
+using NuGet.Configuration;
+using NuGet.Frameworks;
+using NuGet.Protocol;
+using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 
 Console.WriteLine();
 
 
-class OnPremiseNugetPackageSourceManger
+//TODO: Some configuration file, where it will be possible to configure which dependencies and how should be updated
+//TODO: CLI tool - update dependencies in local repository, in remote repository (with PR)
+//TODO: Implementations as Bitbucket/Nuget should be more generic, allowing user to configure many of them with auth method
+//TODO: Version of dotnet
+
+public class OnPremiseNugetPackageSourceManger
 {
     private static readonly XName XmlEntryName = XName.Get("entry", "http://www.w3.org/2005/Atom");
     private static readonly XName XmlLinkName = XName.Get("link", "http://www.w3.org/2005/Atom");
@@ -55,17 +68,24 @@ class OnPremiseNugetPackageSourceManger
     }
 }
 
-class NugetPackageSourceManger
+public class NugetPackageSourceManger
 {
     private readonly HttpClient _httpClient;
+    private readonly SourceRepository _sourceRepository;
 
     public NugetPackageSourceManger()
     {
         _httpClient = new HttpClient(){BaseAddress = new Uri("https://api.nuget.org/")};
+        _sourceRepository = Repository.Factory.GetCoreV3("https://api.nuget.org/v3/index.json");
     }
     
     public async Task<string?> GetLatestPackageVersions(string packageId, bool includePrerelease = false)
     {
+        var packageMetadataResource = await _sourceRepository.GetResourceAsync<PackageMetadataResource>();
+        var metd = await packageMetadataResource.GetMetadataAsync(packageId.ToLowerInvariant(), false, false, new SourceCacheContext(),
+            new NullLogger(), CancellationToken.None);
+        var aaa = metd.ToList();
+
         using var response = await _httpClient.GetAsync($"v3-flatcontainer/{packageId.ToLowerInvariant()}/index.json");
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -91,7 +111,7 @@ class NugetPackageSourceManger
             versions = versions.Where(x => NuGetVersion.TryParse(x, out var nugetVersion) && !nugetVersion.IsPrerelease).ToList();
         }
 
-        return versions[^1];
+        return versions.Count == 0 ? null : versions[^1];
     }
     
     private class GetPackageMetadataResponse
@@ -128,7 +148,7 @@ public partial class SolutionFileParser
 
 public class ProjectFileParser : IFileParser, IAsyncDisposable
 {
-    private static readonly UTF8Encoding Utf8EncodingWithoutBom = new UTF8Encoding(false);
+    private static readonly UTF8Encoding Utf8EncodingWithoutBom = new(false);
     private readonly MemoryStream _fileContent;
     private XElement _xmlFile = null!;
     
@@ -146,6 +166,7 @@ public class ProjectFileParser : IFileParser, IAsyncDisposable
     public async Task<string> Generate()
     {
         using var memoryStream = new MemoryStream();
+        //TODO: We do not know whatever file encoding have contain BOM or not. We should generate updated content with respect of original format.
         await using var xmlWriter = XmlWriter.Create(memoryStream, new XmlWriterSettings() { Encoding = Utf8EncodingWithoutBom, OmitXmlDeclaration = true, Async = true});
         
         await _xmlFile.WriteToAsync(xmlWriter, CancellationToken.None);
@@ -154,13 +175,37 @@ public class ProjectFileParser : IFileParser, IAsyncDisposable
         return Encoding.UTF8.GetString(memoryStream.ToArray());
     }
     
-    public async Task<IReadOnlyCollection<Dependency>> Parse()
+    public async Task<ProjectFile> Parse()
     {
         await Init();
 
+        List<string> ParseTargetFramework()
+        {
+            var result = new List<string>();
+            
+            var targetFramework = _xmlFile.XPathSelectElement("PropertyGroup/TargetFramework")?.Value;
+            if (targetFramework is not null)
+            {
+                result.Add(targetFramework);
+
+                return result;
+            }
+
+            var targetFrameworks = _xmlFile.XPathSelectElement("PropertyGroup/TargetFrameworks")?.Value;
+            if (targetFrameworks is not null)
+            {
+                return targetFrameworks.Split(';').ToList();
+            }
+
+            return result;
+        }
+
+        var targetFrameworks = ParseTargetFramework();
         var packageReferences = _xmlFile.XPathSelectElements("ItemGroup/PackageReference").ToList();
 
-        return packageReferences.Select(ParseDependency).Where(x => x is not null).ToList()!;
+        var dependencies = packageReferences.Select(ParseDependency).Where(x => x is not null).ToList();
+
+        return new ProjectFile(dependencies!, targetFrameworks);
     }
 
     private Dependency? ParseDependency(XElement element)
@@ -236,7 +281,7 @@ public class Dependency
 
 interface IFileParser
 {
-    Task<IReadOnlyCollection<Dependency>> Parse();
+    Task<ProjectFile> Parse();
     Task<string> Generate();
 }
 
@@ -248,6 +293,8 @@ interface IRepositoryManger
     Task CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description);
 }
 
+//TODO: Need also think about determining if pull request for some specific change was already created and we do not need to create another one.
+//There is also possibility that pull request should be updated, because another dependency update has been found 
 class BitbucketRepositoryManager : IRepositoryManger
 {
     private readonly HttpClient _httpClient;
@@ -263,6 +310,7 @@ class BitbucketRepositoryManager : IRepositoryManger
 
     public async Task<IEnumerable<string>> GetRepositoryFilePaths()
     {
+        //TODO: We should make those as long as there are still files to be collected
         var response = await _httpClient.GetFromJsonAsync<GetRepositoryFilePathsResponse>($"files?limit={PathsLimit}");
         return response?.Values ?? Enumerable.Empty<string>();
     }
@@ -270,7 +318,7 @@ class BitbucketRepositoryManager : IRepositoryManger
     public async Task<FileContent> GetFileContent(string filePath)
     {
         var response = await _httpClient.GetFromJsonAsync<GetFileContentResponse>($"browse/{filePath}");
-        return new FileContent() { Lines = response?.Lines.Select(x => x.Text) ?? Enumerable.Empty<string>(), Path = filePath };
+        return new FileContent(response?.Lines.Select(x => x.Text) ?? Enumerable.Empty<string>(), filePath);
     }
     
     public async Task<Commit> EditFile(string branch, string commitMessage, string content, string filePath)
@@ -313,10 +361,33 @@ class BitbucketRepositoryManager : IRepositoryManger
     }
 }
 
+public class ProjectFile
+{
+    public ProjectFile(IReadOnlyCollection<Dependency> dependencies, IReadOnlyCollection<string> targetFrameworks)
+    {
+        Dependencies = dependencies;
+        TargetFrameworks = targetFrameworks;
+    }
+
+    public IReadOnlyCollection<Dependency> Dependencies { get; private set; }
+    public IReadOnlyCollection<string> TargetFrameworks { get; private set; }
+}
+
 public class FileContent
 {
-    public IEnumerable<string> Lines { get; set; }
-    public string Path { get; set; }
+    public FileContent(IEnumerable<string> lines, string path)
+    {
+        Lines = lines;
+        Path = path;
+    }
+
+    public static FileContent Create(string path)
+    {
+        return new FileContent(File.ReadAllLines(path), path);
+    } 
+    
+    public IEnumerable<string> Lines { get; private set; }
+    public string Path { get; private set; }
 }
 
 internal class Commit

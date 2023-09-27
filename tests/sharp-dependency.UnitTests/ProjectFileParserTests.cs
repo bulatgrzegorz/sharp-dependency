@@ -28,7 +28,8 @@ public class ProjectFileParserTests
 """;
         
         await using var parser = new ProjectFileParser(content);
-        var dependencies = (await parser.Parse()).ToArray();
+        var projectFile = await parser.Parse();
+        var dependencies = projectFile.Dependencies.ToArray();
         
         Assert.Equal("Lib1", dependencies[0].Name);
         Assert.Equal("0.0.25", dependencies[0].CurrentVersion);
@@ -69,9 +70,9 @@ public class ProjectFileParserTests
 """;
         
 	    await using var parser = new ProjectFileParser(content);
-	    var dependencies = await parser.Parse();
+	    var projectFile = await parser.Parse();
 
-	    var dependency = dependencies.First(x => x.Name == "Lib1");
+	    var dependency = projectFile.Dependencies.First(x => x.Name == "Lib1");
 	    dependency.UpdateVersion("1.0.4");
 
 	    var resultContent = await parser.Generate();
