@@ -39,7 +39,7 @@ EndGlobal
 """;
         
         var parser = new SolutionFileParser();
-        var projects = parser.GetProjectPaths(new FileContent(){Lines = solutionContent.Split("\n"), Path = ""}).ToArray();
+        var projects = parser.GetProjectPaths(new FileContent(solutionContent.Split("\n"), "")).ToArray();
      
         Assert.Equal(@"Market.Data\Market.Data.csproj", projects[0]);
         Assert.Equal(@"tests\Market.Data.UnitTests\Market.Data.UnitTests.csproj", projects[1]);
