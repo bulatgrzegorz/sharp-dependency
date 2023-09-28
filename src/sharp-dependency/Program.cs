@@ -4,7 +4,7 @@ using System.Net.Http.Json;
 using NuGet.Versioning;
 
 //TODO: Some configuration file, where it will be possible to configure which dependencies and how should be updated
-//TODO: CLI tool - update dependencies in local repository, in remote repository (with PR)
+//TODO: CLI tool - update remote repository (with PR)
 //TODO: Implementations as Bitbucket should be more generic, allowing user to configure many of them with auth method
 //TODO: Support directory.build.props files
 
