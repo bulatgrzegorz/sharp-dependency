@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using Microsoft.Extensions.Configuration;
+using sharp_dependency;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -30,54 +31,32 @@ internal sealed class UpdateSolutionDependencyCommand : AsyncCommand<UpdateSolut
 
         var configuration = configurationBuilder.Build();
         
-        var onpremiseNugetManager = new OnPremiseNugetPackageSourceManger(configuration["NugetAddress"]!, configuration["NugetToken"]!);
-        var nugetManager = new NugetPackageSourceManger();
+        var nugetManager = new NugetPackageSourceMangerChain(
+            new NugetPackageSourceManger(),
+            new NugetPackageSourceManger(configuration["NugetAddress"]!, NugetPackageSourceManger.ApiVersion.V3, (configuration["NugetUserName"]!, configuration["NugetToken"]!, true)));
         var solutionFileParser = new SolutionFileParser();
         var solutionProjects = solutionFileParser.GetProjectPaths(FileContent.Create(settings.SolutionPath!));
 
         Console.WriteLine("Found {0} projects in solution {1}", solutionProjects.Count, settings.SolutionPath);
         
-        var latestDependencyVersionCache = new Dictionary<string, string?>();
         foreach (var solutionProject in solutionProjects)
         {
-            Console.WriteLine("Updating dependencies in project: {0}", solutionProject);
+            Console.WriteLine("{0}", solutionProject);
             
             var projectContent = await File.ReadAllTextAsync(solutionProject);
             await using var projectFileParser = new ProjectFileParser(projectContent);
             var projectFile = await projectFileParser.Parse();
             foreach (var dependency in projectFile.Dependencies)
             {
-                if (!latestDependencyVersionCache.TryGetValue(dependency.Name, out var latestVersion))
+                var allVersions = await nugetManager.GetPackageVersions(dependency.Name, projectFile.TargetFrameworks);
+                if (allVersions.Count == 0)
                 {
-                    latestVersion = await nugetManager.GetLatestPackageVersions(dependency.Name);
-                }
-                
-                // if (latestVersion is null)
-                // {
-                //     var onPremiseLatestVersion = await onpremiseNugetManager.GetLatestPackageVersionsV2(dependency.Name);
-                //     if (onPremiseLatestVersion is null)
-                //     {
-                //         Console.WriteLine("ERROR: Could not determine latest version for package: {0}.", dependency.Name);
-                //         latestDependencyVersionCache.Add(dependency.Name, null);
-                //         continue;
-                //     }
-                //     
-                //     latestDependencyVersionCache.Add(dependency.Name, onPremiseLatestVersion);
-                //     latestVersion = onPremiseLatestVersion;
-                // }
-                if (latestVersion is null)
-                {
-                    latestDependencyVersionCache.Add(dependency.Name, null);
-                    Console.WriteLine("ERROR: Could not determine latest version for package: {0}.", dependency.Name);
                     continue;
                 }
-        
-                //TODO: Fix comparing - is it enough?
-                if (dependency.CurrentVersion != latestVersion)
+
+                if (dependency.UpdateVersionIfPossible(allVersions, out var newVersion))
                 {
-                    Console.WriteLine("Update dependency {0}({1}) with latest version {2}", dependency.Name, dependency.CurrentVersion, latestVersion);
-                    
-                    dependency.UpdateVersion(latestVersion);
+                    Console.WriteLine("     {0} {1} -> {2}", dependency.Name, dependency.CurrentVersion, newVersion);    
                 }
             }
             

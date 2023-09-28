@@ -1,3 +1,6 @@
+using System.Collections.ObjectModel;
+using NuGet.Versioning;
+
 namespace sharp_dependency.UnitTests;
 
 public class ProjectFileParserTests
@@ -73,10 +76,63 @@ public class ProjectFileParserTests
 	    var projectFile = await parser.Parse();
 
 	    var dependency = projectFile.Dependencies.First(x => x.Name == "Lib1");
-	    dependency.UpdateVersion("1.0.4");
+	    dependency.UpdateVersionIfPossible(new Collection<NuGetVersion>(){NuGetVersion.Parse("1.0.4")}, out _);
 
 	    var resultContent = await parser.Generate();
 	    
 	    Assert.Equal(expectedResultContent, resultContent);
+    }
+    
+    [Fact]
+    public async Task ProjectFileParser_ParseTargetFrameworkWell()
+    {
+	    var content = """
+<Project Sdk="Microsoft.NET.Sdk.Web">
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+	</PropertyGroup>
+</Project>
+""";
+        
+	    await using var parser = new ProjectFileParser(content);
+	    var projectFile = await parser.Parse();
+
+	    var targetFrameworks = projectFile.TargetFrameworks.ToArray();
+	    Assert.Single(targetFrameworks);
+	    Assert.Equal("net6.0", targetFrameworks[0]);
+    }
+    
+    [Fact]
+    public async Task ProjectFileParser_ParseTargetFrameworksWell()
+    {
+	    var content = """
+<Project Sdk="Microsoft.NET.Sdk.Web">
+	<PropertyGroup>
+		<TargetFrameworks>net6.0;netstandard2.0</TargetFrameworks>
+	</PropertyGroup>
+</Project>
+""";
+        
+	    await using var parser = new ProjectFileParser(content);
+	    var projectFile = await parser.Parse();
+
+	    var targetFrameworks = projectFile.TargetFrameworks.ToArray();
+	    Assert.Equal(2, targetFrameworks.Length);
+	    Assert.Equal("net6.0", targetFrameworks[0]);
+	    Assert.Equal("netstandard2.0", targetFrameworks[1]);
+    }
+    
+    [Fact]
+    public async Task ProjectFileParser_ParseTargetFrameworkWell_WhereNone()
+    {
+	    var content = """
+<Project Sdk="Microsoft.NET.Sdk.Web">
+</Project>
+""";
+        
+	    await using var parser = new ProjectFileParser(content);
+	    var projectFile = await parser.Parse();
+
+	    Assert.Empty(projectFile.TargetFrameworks);
     }
 }
