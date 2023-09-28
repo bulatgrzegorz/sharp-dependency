@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency", "sharp-dependency\sharp-dependency.csproj", "{5DB4EE45-FC52-475B-ADAE-B8AD85E87BB5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency", "src\sharp-dependency\sharp-dependency.csproj", "{5DB4EE45-FC52-475B-ADAE-B8AD85E87BB5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency.UnitTests", "..\tests\sharp-dependency.UnitTests\sharp-dependency.UnitTests.csproj", "{77E869CF-F389-4B32-8321-4BBC18CC40A2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency.UnitTests", "tests\sharp-dependency.UnitTests\sharp-dependency.UnitTests.csproj", "{77E869CF-F389-4B32-8321-4BBC18CC40A2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency.cli", "sharp-dependency.cli\sharp-dependency.cli.csproj", "{E87FF0F7-7348-4554-8F7B-0B54E5274537}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency.cli", "src\sharp-dependency.cli\sharp-dependency.cli.csproj", "{E87FF0F7-7348-4554-8F7B-0B54E5274537}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
