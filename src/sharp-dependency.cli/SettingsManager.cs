@@ -7,22 +7,21 @@ public static class SettingsManager
     private const string AppDirectoryName = "sharp_dependency";
     private const string SettingsFileExtension = ".json";
 
-    public static T? GetSettings<T>()
+    public static async ValueTask<T?> GetSettings<T>()
     {
         var filePath = PathFor<T>();
 
         if (!File.Exists(filePath)) return default;
 
-        var fileText = File.ReadAllText(filePath);
-
-        return JsonSerializer.Deserialize<T>(fileText);
+        await using var fileStream = File.OpenRead(filePath);
+        return await JsonSerializer.DeserializeAsync<T>(fileStream);
     }
 
-    public static void SaveSettings<T>(T settings)
+    public static Task SaveSettings<T>(T settings)
     {
         Directory.CreateDirectory(AppDirectory());
 
-        File.WriteAllText(PathFor<T>(), JsonSerializer.Serialize(settings));
+        return File.WriteAllTextAsync(PathFor<T>(), JsonSerializer.Serialize(settings, new JsonSerializerOptions(){WriteIndented = true}));
     }
 
     private static string PathFor<T>()
