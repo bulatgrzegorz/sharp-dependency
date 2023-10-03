@@ -5,15 +5,14 @@ namespace sharp_dependency;
 
 //TODO: Need also think about determining if pull request for some specific change was already created and we do not need to create another one.
 //There is also possibility that pull request should be updated, because another dependency update has been found 
-public class BitbucketRepositoryManager : IRepositoryManger
+//https://developer.atlassian.com/server/bitbucket/rest/v811/intro/#about
+public class BitbucketServerRepositoryManager : IRepositoryManger
 {
     private readonly HttpClient _httpClient;
     private const int PathsLimit = 1000;
 
-    public BitbucketRepositoryManager(string baseUrl, string authorizationToken, string repositoryName, string projectName)
+    public BitbucketServerRepositoryManager(string baseUrl, string authorizationToken, string repositoryName, string projectName)
     {
-        Console.WriteLine(Environment.SpecialFolder.LocalApplicationData);
-        
         _httpClient = new HttpClient(){BaseAddress = new Uri($"{baseUrl}/rest/api/latest/projects/{projectName}/repos/{repositoryName}/")};
         _httpClient.DefaultRequestHeaders.Authorization = AuthenticationHeaderValue.Parse($"Bearer {authorizationToken}");
         //methods that accept multipart/form-data will only process requests with X-Atlassian-Token: no-check header.
@@ -29,8 +28,8 @@ public class BitbucketRepositoryManager : IRepositoryManger
 
     public async Task<string> GetFileContentRaw(string filePath)
     {
-        var response1 = await _httpClient.GetAsync($"raw/{filePath}");
-        return await response1.Content.ReadAsStringAsync();
+        var response = await _httpClient.GetAsync($"raw/{filePath}");
+        return await response.Content.ReadAsStringAsync();
     }
     
     public async Task<FileContent> GetFileContent(string filePath)
