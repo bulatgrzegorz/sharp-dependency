@@ -12,7 +12,7 @@ public class ConfigureNugetCommand : AsyncCommand<ConfigureNugetCommand.Settings
     // ReSharper disable once ClassNeverInstantiated.Global
     public sealed class Settings : CommandSettings 
     {
-        [Description("The NuGet configuration file")]
+        [Description("The NuGet configuration file. For more information, see https://docs.microsoft.com/nuget/consume-packages/configuring-nuget-behavior.")]
         [CommandArgument(0, "[path]")]
         public string ConfigPath { get; init; } = null!;
     }

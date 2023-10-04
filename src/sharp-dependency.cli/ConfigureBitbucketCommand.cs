@@ -1,4 +1,6 @@
-﻿using Spectre.Console;
+﻿using System.ComponentModel;
+using System.Text.Json;
+using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace sharp_dependency.cli;
@@ -10,21 +12,27 @@ public class ConfigureBitbucketCommand : AsyncCommand<ConfigureBitbucketCommand.
     // ReSharper disable once ClassNeverInstantiated.Global
     public sealed class Settings : CommandSettings 
     {
+        [Description("Base URL address to bitbucket api.")]
         [CommandArgument(0, "[address]")]
         public string ApiAddress { get; init; }
         
+        [Description("Name of repository source.")]
         [CommandOption("-n|--name")]
         public string Name { get; set; }
         
+        [Description("Type of bitbucket (Cloud and Server (onpremise))")]
         [CommandOption("-t|--type")]
         public BitbucketType Type { get; set; }
         
+        [Description("User name used for basic authentication.")]
         [CommandOption("-u|--username")]
         public string UserName { get; set; }
 
+        [Description("Pasword used for basic authentication.")]
         [CommandOption("-p|--password")]
         public string AppPassword { get; set; }
 
+        [Description("Token used for bearer authentication.")]
         [CommandOption("--token")]
         public string Token { get; set; }
     }
@@ -37,10 +45,11 @@ public class ConfigureBitbucketCommand : AsyncCommand<ConfigureBitbucketCommand.
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        Configuration.Bitbucket.BitbucketCredentials bitbucketCredentials = (settings.UserName, settings.AppPassword, settings.Token) switch
+        Configuration.Bitbucket.BitbucketCredentials? bitbucketCredentials = (settings.UserName, settings.AppPassword, settings.Token) switch
         {
             var (_, _, t) when !string.IsNullOrWhiteSpace(t) => new Configuration.Bitbucket.BitbucketCredentials.AccessTokenBitbucketCredentials() { Token = t },
-            var (u, p, _) => new Configuration.Bitbucket.BitbucketCredentials.AppPasswordBitbucketCredentials() { UserName = u, AppPassword = p }
+            var (u, p, _) when !string.IsNullOrWhiteSpace(u) && !string.IsNullOrWhiteSpace(p) => new Configuration.Bitbucket.BitbucketCredentials.AppPasswordBitbucketCredentials() { UserName = u, AppPassword = p },
+            _ => null
         };
 
         Configuration.Bitbucket bitbucketConfiguration = settings.Type switch
@@ -83,6 +92,12 @@ public class ConfigureBitbucketCommand : AsyncCommand<ConfigureBitbucketCommand.
         if (string.IsNullOrWhiteSpace(settings.ApiAddress))
         {
             return ValidationResult.Error($"Setting {nameof(settings.ApiAddress)} must have a value.");
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.UserName) && string.IsNullOrWhiteSpace(settings.AppPassword) && string.IsNullOrWhiteSpace(settings.Token))
+        {
+            //that's fine, it's allowed to use api without any credentials
+            return ValidationResult.Success();
         }
         
         if ((string.IsNullOrWhiteSpace(settings.UserName) || string.IsNullOrWhiteSpace(settings.AppPassword)) && string.IsNullOrWhiteSpace(settings.Token))

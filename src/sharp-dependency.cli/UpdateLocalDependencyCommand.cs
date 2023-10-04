@@ -1,5 +1,7 @@
 ﻿using System.ComponentModel;
+using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
+using NuGet.Configuration;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -25,14 +27,28 @@ internal sealed class UpdateLocalDependencyCommand : AsyncCommand<UpdateLocalDep
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        var configurationBuilder = new ConfigurationBuilder();
-        configurationBuilder.AddUserSecrets<Program>();
+        var currentConfiguration = await SettingsManager.GetSettings<Configuration>();
+        if (currentConfiguration is null)
+        {
+            Console.WriteLine("[ERROR]: There is no configuration created yet. Use -h|--help for more info.");
+            return 1;
+        }
 
-        var configuration = configurationBuilder.Build();
+        if (currentConfiguration.NugetConfiguration is null)
+        {
+            Console.WriteLine("[ERROR]: There is no nuget configuration created yet. Use -h|--help for more info.");
+            return 1;
+        }
         
-        var nugetManager = new NugetPackageSourceMangerChain(
-            new NugetPackageSourceManger(),
-            new NugetPackageSourceManger(configuration["NugetAddress"]!, NugetPackageSourceManger.ApiVersion.V3, (configuration["NugetUserName"]!, configuration["NugetToken"]!, true)));
+        var packageSourceProvider = new PackageSourceProvider(new NuGet.Configuration.Settings(currentConfiguration.NugetConfiguration.ConfigFileDirectory, currentConfiguration.NugetConfiguration.ConfigFileName));
+        var packageSources = packageSourceProvider.LoadPackageSources().ToList();
+        if (packageSources is { Count: 0 })
+        {
+            Console.WriteLine("[ERROR]: Given nuget configuration has no package sources. We cannot determine any package version using it.");
+            return 1;
+        }
+
+        var nugetManager = new NugetPackageSourceMangerChain(packageSources.Select(x => new NugetPackageSourceManger(x)).ToArray());
 
         var projectPaths = GetProjectsPath(settings);
 
