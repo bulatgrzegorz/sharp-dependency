@@ -1,46 +1,58 @@
-﻿using System.Buffers.Text;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
-using System.Text.Unicode;
-using NuGet.Packaging;
 
 namespace sharp_dependency;
 
 //https://developer.atlassian.com/cloud/bitbucket/rest/intro
 public class BitbucketCloudRepositoryManager: IRepositoryManger
 {
-    private HttpClient _httpClient;
+    private readonly HttpClient _httpClient;
+    private Dictionary<string, string>? _pathsToAddress;
 
-    public BitbucketCloudRepositoryManager(string workspace, string repository, string authorizationToken)
+    public BitbucketCloudRepositoryManager(string baseUrl, string workspace, string repository, string authorizationToken)
     {
-        _httpClient = CreateHttpClient(workspace, repository);
+        _httpClient = CreateHttpClient(baseUrl, workspace, repository);
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authorizationToken);
     }
     
-    public BitbucketCloudRepositoryManager(string workspace, string repository, (string userName, string password) credentials)
+    public BitbucketCloudRepositoryManager(string baseUrl, string workspace, string repository, (string userName, string password) credentials)
     {
-        _httpClient = CreateHttpClient(workspace, repository);
+        _httpClient = CreateHttpClient(baseUrl, workspace, repository);
         var header = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{credentials.userName}:{credentials.password}"));
         _httpClient.DefaultRequestHeaders.Authorization = AuthenticationHeaderValue.Parse($"Basic {header}");
     }
 
-    public BitbucketCloudRepositoryManager(string workspace, string repository) => CreateHttpClient(workspace, repository);
+    public BitbucketCloudRepositoryManager(string baseUrl, string workspace, string repository)
+    {
+        _httpClient = CreateHttpClient(baseUrl, workspace, repository);
+    }
 
-    private HttpClient CreateHttpClient(string workspace, string repository) => 
-        new() { BaseAddress = new Uri($"https://api.bitbucket.org/2.0/repositories/{workspace.ToLowerInvariant()}/{repository.ToLowerInvariant()}/")};
+    //Used in tests
+    internal BitbucketCloudRepositoryManager(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
+    }
+
+    private HttpClient CreateHttpClient(string baseUrl, string workspace, string repository) => 
+        new() { BaseAddress = new Uri($"{baseUrl}/2.0/repositories/{workspace.ToLowerInvariant()}/{repository.ToLowerInvariant()}/")};
 
     public async Task<IEnumerable<string>> GetRepositoryFilePaths()
     {
-        var filePaths = new ConcurrentDictionary<string, byte>();
-        await GetRepositoryFilePathsInternal("src", filePaths);
+        if (_pathsToAddress is {})
+        {
+            return _pathsToAddress.Keys;
+        }
 
-        return filePaths.Keys;
+        _pathsToAddress = new Dictionary<string, string>();
+        await GetRepositoryFilePathsInternal("src");
+
+        return _pathsToAddress.Keys;
     }
 
-    private async Task GetRepositoryFilePathsInternal(string url, ConcurrentDictionary<string, byte> paths)
+    private async Task GetRepositoryFilePathsInternal(string url)
     {
         if (url is null or { Length: 0 })
         {
@@ -57,18 +69,45 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         {
             if (responseValue.IsCommitFile)
             {
-                paths.TryAdd(responseValue.Path, 0);
+                _pathsToAddress?.TryAdd(responseValue.Path, responseValue.Links.Self.Href);
             }
             else
             {
-                await GetRepositoryFilePathsInternal(responseValue.Links.Self.Href, paths);
+                await GetRepositoryFilePathsInternal(responseValue.Links.Self.Href);
             }
         }
     }
 
-    public Task<FileContent> GetFileContent(string filePath)
+    public async Task<FileContent> GetFileContent(string filePath)
     {
-        throw new NotImplementedException();
+        var content = await GetFileContentRaw(filePath);
+        return new FileContent(content.GetLines(), filePath);
+    }
+
+    public async Task<string> GetFileContentRaw(string filePath)
+    {
+        if (_pathsToAddress is {})
+        {
+            if (!_pathsToAddress.TryGetValue(filePath, out var link))
+            {
+                //Some paths could use backslash (like sln project paths)
+                if (!_pathsToAddress.TryGetValue(filePath.Replace("\\", "/"), out var link2))
+                {
+                    throw new ArgumentException($"Given file path ({filePath}) could not be find among repository paths.", nameof(filePath));
+                }
+
+                link = link2;
+            }
+
+            using var response = await _httpClient.GetAsync(link);
+            response.EnsureSuccessStatusCode();
+            
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        //We didn't collect file paths yet. We will call method to do this, and try again 
+        _ = await GetRepositoryFilePaths();
+        return await GetFileContentRaw(filePath);
     }
 
     public Task<Commit> EditFile(string branch, string commitMessage, string content, string filePath)
@@ -84,6 +123,7 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
     private static async Task<GetSrcResponse?> GetSrc(HttpClient httpClient, string url)
     {
         using var response = await httpClient.GetAsync(url);
+        var r = await response.Content.ReadAsStringAsync();
         return response.StatusCode switch
         {
             HttpStatusCode.OK => await response.Content.ReadFromJsonAsync<GetSrcResponse>(),
@@ -94,7 +134,7 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
     }
 
     // ReSharper disable once ClassNeverInstantiated.Local
-    private class GetSrcResponse
+    internal class GetSrcResponse
     {
         public ICollection<Value> Values { get; set; }
 

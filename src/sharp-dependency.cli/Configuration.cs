@@ -1,19 +1,29 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Text;
+using System.Text.Json.Serialization;
 
 namespace sharp_dependency.cli;
 
-public sealed class Configuration
+// ReSharper disable once WithExpressionModifiesAllMembers
+public sealed record Configuration
 {
     public required Dictionary<string, Bitbucket> Bitbuckets { get; set; }
     public required Current? CurrentConfiguration { get; set; }
     public required Nuget? NugetConfiguration { get; set; }
 
-    public class Current
+    public Configuration WithoutSensitiveData()
+    {
+        return this with
+        {
+            Bitbuckets = Bitbuckets.ToDictionary(x => x.Key, x => x.Value with { Credentials = x.Value.Credentials.WithoutSensitiveData() })
+        };
+    }
+
+    public record Current
     {
         public required string? RepositoryContext { get; set; }
     }
 
-    public sealed class Nuget
+    public sealed record Nuget
     {
         public required string ConfigFileDirectory { get; set; }
         public required string ConfigFileName { get; set; }
@@ -21,28 +31,47 @@ public sealed class Configuration
 
     [JsonDerivedType(typeof(CloudBitbucket), "Cloud")]
     [JsonDerivedType(typeof(ServerBitbucket), "Server")]
-    public abstract class Bitbucket
+    public abstract record Bitbucket
     {
         public required string ApiAddress { get; set; }
-        public required BitbucketCredentials Credentials { get; set; }
+        public required BitbucketCredentials? Credentials { get; set; }
 
         [JsonDerivedType(typeof(AppPasswordBitbucketCredentials), "AppPassword")]
         [JsonDerivedType(typeof(AccessTokenBitbucketCredentials), "Token")]
-        public class BitbucketCredentials
+        public abstract record BitbucketCredentials
         {
-            public sealed class AppPasswordBitbucketCredentials : BitbucketCredentials
+            public sealed record AppPasswordBitbucketCredentials : BitbucketCredentials
             {
                 public required string UserName { get; set; }
+                
                 public required string AppPassword { get; set; }
+
+                public override BitbucketCredentials WithoutSensitiveData()
+                {
+                    return this with
+                    {
+                        AppPassword = "****"
+                    };
+                }
             }
         
-            public sealed class AccessTokenBitbucketCredentials : BitbucketCredentials
+            public sealed record AccessTokenBitbucketCredentials : BitbucketCredentials
             {
                 public required string Token { get; set; }
+
+                public override BitbucketCredentials WithoutSensitiveData()
+                {
+                    return this with
+                    {
+                        Token = "****"
+                    };
+                }
             }
+
+            public abstract BitbucketCredentials WithoutSensitiveData();
         }
 
-        public sealed class CloudBitbucket : Bitbucket
+        public sealed record CloudBitbucket : Bitbucket
         {
             public CloudBitbucket()
             {
@@ -50,7 +79,7 @@ public sealed class Configuration
             }
         }
     
-        public sealed class ServerBitbucket : Bitbucket
+        public sealed record ServerBitbucket : Bitbucket
         {
         }
     }

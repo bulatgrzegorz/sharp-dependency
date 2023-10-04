@@ -41,11 +41,11 @@ public class NugetPackageSourceMangerChain
 public class NugetPackageSourceManger
 {
     public enum ApiVersion { V3, V2 }
-    private readonly SourceRepository _sourceRepository;
+    public SourceRepository _sourceRepository { get; }
     private static readonly SourceCacheContext SourceCacheContext = new();
     private static readonly FrameworkReducer FrameworkReducer = new();
     private static readonly ConcurrentDictionary<string, NuGetFramework> ParsedTargetFrameworks = new();
-    private static readonly ConcurrentDictionary<string, Lazy<Task<IReadOnlyCollection<NuGetVersion>>>> PackageVersionCache = new();
+    private readonly ConcurrentDictionary<string, Lazy<Task<IReadOnlyCollection<NuGetVersion>>>> _packageVersionCache = new();
 
     public NugetPackageSourceManger()
     {
@@ -62,6 +62,13 @@ public class NugetPackageSourceManger
         
         _sourceRepository = apiVersion == ApiVersion.V3 ? Repository.Factory.GetCoreV3(packageSource) : Repository.Factory.GetCoreV2(packageSource);
     }
+    
+    public NugetPackageSourceManger(PackageSource packageSource)
+    {
+        _sourceRepository = Repository.Factory.GetCoreV3(packageSource);
+        //TODO: Some onpremise sources work much faster on protocolVersion = 2 when using v3. Does all sources with protocolVersion = 2 will work correctly on v3?
+        // _sourceRepository = packageSource.ProtocolVersion == 3 ? Repository.Factory.GetCoreV3(packageSource) : Repository.Factory.GetCoreV2(packageSource);
+    }
 
     public async Task<IReadOnlyCollection<NuGetVersion>> GetPackageVersions(string packageId, IEnumerable<string> targetFrameworks, bool includePrerelease = false)
     {
@@ -69,7 +76,7 @@ public class NugetPackageSourceManger
         
         var cacheKey = GetCacheKey(packageId, includePrerelease, frameworks);
         var getAllVersionsTask = new Lazy<Task<IReadOnlyCollection<NuGetVersion>>>(() => GetPackageVersionsInternal(packageId, frameworks, includePrerelease));
-        return await PackageVersionCache.GetOrAdd(cacheKey, getAllVersionsTask).Value;
+        return await _packageVersionCache.GetOrAdd(cacheKey, getAllVersionsTask).Value;
     }
     
     private async Task<IReadOnlyCollection<NuGetVersion>> GetPackageVersionsInternal(string packageId, IEnumerable<string> targetFrameworks, bool includePrerelease = false)

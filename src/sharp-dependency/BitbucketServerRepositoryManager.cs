@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 
 namespace sharp_dependency;
 
@@ -11,10 +12,24 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
     private readonly HttpClient _httpClient;
     private const int PathsLimit = 1000;
 
-    public BitbucketServerRepositoryManager(string baseUrl, string authorizationToken, string repositoryName, string projectName)
+    public BitbucketServerRepositoryManager(string baseUrl, string repositoryName, string projectName)
+    {
+        _httpClient = new HttpClient(){BaseAddress = new Uri($"{baseUrl}/rest/api/latest/projects/{projectName}/repos/{repositoryName}/")};
+    }
+    
+    public BitbucketServerRepositoryManager(string baseUrl, string repositoryName, string projectName, string authorizationToken)
     {
         _httpClient = new HttpClient(){BaseAddress = new Uri($"{baseUrl}/rest/api/latest/projects/{projectName}/repos/{repositoryName}/")};
         _httpClient.DefaultRequestHeaders.Authorization = AuthenticationHeaderValue.Parse($"Bearer {authorizationToken}");
+        //methods that accept multipart/form-data will only process requests with X-Atlassian-Token: no-check header.
+        _httpClient.DefaultRequestHeaders.Add("X-Atlassian-Token", "no-check");
+    }
+    
+    public BitbucketServerRepositoryManager(string baseUrl, string repositoryName, string projectName, (string userName, string password) credentials)
+    {
+        _httpClient = new HttpClient(){BaseAddress = new Uri($"{baseUrl}/rest/api/latest/projects/{projectName}/repos/{repositoryName}/")};
+        var header = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{credentials.userName}:{credentials.password}"));
+        _httpClient.DefaultRequestHeaders.Authorization = AuthenticationHeaderValue.Parse($"Basic {header}");
         //methods that accept multipart/form-data will only process requests with X-Atlassian-Token: no-check header.
         _httpClient.DefaultRequestHeaders.Add("X-Atlassian-Token", "no-check");
     }

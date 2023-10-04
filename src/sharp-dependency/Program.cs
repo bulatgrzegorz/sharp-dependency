@@ -1,12 +1,11 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using NuGet.Versioning;
 
 //TODO: Some configuration file, where it will be possible to configure which dependencies and how should be updated
 //TODO: CLI tool - update remote repository (with PR)
 //TODO: Implementations as Bitbucket should be more generic, allowing user to configure many of them with auth method
 //TODO: Support directory.build.props files
+//TODO: Support target framework conditions in csproj item groups
 
 public class Dependency
 {
@@ -52,10 +51,11 @@ interface IFileParser
     Task<string> Generate();
 }
 
-interface IRepositoryManger
+public interface IRepositoryManger
 {
     Task<IEnumerable<string>> GetRepositoryFilePaths();
     Task<FileContent> GetFileContent(string filePath);
+    Task<string> GetFileContentRaw(string filePath);
     Task<Commit> EditFile(string branch, string commitMessage, string content, string filePath);
     Task CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description);
 }

@@ -8,15 +8,16 @@ app.Configure(config =>
     config.UseStrictParsing();
     config.AddBranch("config", x =>
     {
-        x.AddCommand<ConfigureNugetCommand>("nuget");
-        x.AddCommand<ConfigureBitbucketCommand>("bitbucket");
-        //TODO: Add show command - tokens and passwords should be hidden 
+        x.AddCommand<ConfigureNugetCommand>("nuget").WithDescription("Create nuget configuration.");
+        x.AddCommand<ConfigureBitbucketCommand>("bitbucket").WithDescription("Create bitbucket configuration.");
+        x.AddCommand<ConfigureCurrentContextCommand>("context").WithDescription("Create current context configuration.");
+        x.AddCommand<PrintConfigurationCommand>("get").WithDescription("Print current configuration.");
         //TODO: Add command to remove bitbucket source by name
     });
     config.AddBranch("update", x =>
     {
-        x.AddCommand<UpdateLocalDependencyCommand>("local");
-        x.AddCommand<UpdateRepositoryDependencyCommand>("repo");
+        x.AddCommand<UpdateLocalDependencyCommand>("local").WithDescription("Update dependencies within local project.");
+        x.AddCommand<UpdateRepositoryDependencyCommand>("repo").WithDescription("Update dependencies within remote repository.");
     });
 });
 
