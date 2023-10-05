@@ -29,6 +29,14 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
         [CommandOption("-w|--workspace")]
         public string? Workspace { get; init; }
         
+        [Description("Name of a branch on which dependencies updates should be commited at.")]
+        [CommandOption("-b|--branch")]
+        public string? BranchName { get; init; }
+        
+        [Description("Commit message with which dependencies update commit will going to be done.")]
+        [CommandOption("--commitMessage")]
+        public string? CommitMessage { get; init; }
+        
         [Description("Command will determine dependencies to be updated without actually updating them.")]
         [CommandOption("--dry-run")]
         public bool DryRun { get; init; }
@@ -79,20 +87,26 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
         }
 
         var bitbucketAddress = bitbucket.ApiAddress;
+        var workspace = settings.Workspace;
+        var project = settings.Project;
+        var repository = settings.Repository;
         IRepositoryManger bitbucketManager = (bitbucket, bitbucket.Credentials) switch
         {
-            (CloudBitbucket conf, null) => new BitbucketCloudRepositoryManager( bitbucketAddress, settings.Workspace, settings.Repository),
-            (ServerBitbucket conf, null) => new BitbucketServerRepositoryManager(bitbucketAddress, settings.Repository, settings.Project),
-            (CloudBitbucket conf, AppPasswordCredentials credentials) => new BitbucketCloudRepositoryManager( bitbucketAddress, settings.Workspace, settings.Repository, (credentials.UserName, credentials.AppPassword)),
-            (CloudBitbucket conf, AccessTokenCredentials credentials) => new BitbucketCloudRepositoryManager(bitbucketAddress, settings.Workspace, settings.Repository, credentials.Token),
-            (ServerBitbucket conf, AppPasswordCredentials credentials) => new BitbucketServerRepositoryManager(bitbucketAddress, settings.Repository, settings.Project, (credentials.UserName, credentials.AppPassword)),
-            (ServerBitbucket conf, AccessTokenCredentials credentials) => new BitbucketServerRepositoryManager(bitbucketAddress, settings.Repository, settings.Project, credentials.Token),
+            (CloudBitbucket, null) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace, repository),
+            (ServerBitbucket, null) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project),
+            (CloudBitbucket, AppPasswordCredentials c) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace, repository, (c.UserName, c.AppPassword)),
+            (CloudBitbucket, AccessTokenCredentials c) => new BitbucketCloudRepositoryManager(bitbucketAddress, workspace, repository, c.Token),
+            (ServerBitbucket, AppPasswordCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project, (c.UserName, c.AppPassword)),
+            (ServerBitbucket, AccessTokenCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project, c.Token),
             _ => throw new ArgumentOutOfRangeException()
         };
 
         var repositoryPaths = (await bitbucketManager.GetRepositoryFilePaths()).ToList();
 
         var projectPaths = await GetProjectPaths(repositoryPaths, bitbucketManager);
+
+        //TODO: We should check if anything was actually updated in project before
+        var results = new List<(string filePath, string updatedContent)>(projectPaths.Count);
         foreach (var projectPath in projectPaths)
         {
             Console.WriteLine("{0}", projectPath);
@@ -119,9 +133,11 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
             //TODO: Finish editing files in repository and creating PR 
             if (!settings.DryRun)
             {
-                // await bitbucketManager.EditFile(projectPath, updatedProjectContent);
+                results.Add((projectPath, updatedProjectContent));
             }
         }
+
+        await bitbucketManager.CreateCommit(settings.BranchName ?? "sharp-dependency", settings.CommitMessage ?? "update dependencies", results);
         
         return 0;
     }
@@ -133,7 +149,8 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
         
         var solutionParser = new SolutionFileParser();
         var solutionContent = await bitbucketServerManager.GetFileContent(solutionsPath);
-        return solutionParser.GetProjectPaths(solutionContent);
+        // Paths in sln file are using backslash while everywhere else (url, ...) we are going to use forward slash
+        return solutionParser.GetProjectPaths(solutionContent).Select(x => x.Replace("\\", "/")).ToList();
     }
 
     private string? FindSolutionPath(IReadOnlyCollection<string> filePaths)
@@ -174,10 +191,20 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
             return ValidationResult.Error($"Setting {nameof(settings.Repository)} must have a value.");
         }
         
-        // if (string.IsNullOrEmpty(settings.Project))
-        // {
-        //     return ValidationResult.Error($"Setting {nameof(settings.Project)} must have a value.");
-        // }
+        if (string.IsNullOrEmpty(settings.Project) && string.IsNullOrEmpty(settings.Workspace))
+        {
+            return ValidationResult.Error($"Neither {nameof(settings.Project)} or {nameof(settings.Workspace)} must have a value (depending of bitbucket type you are using).");
+        }
+
+        if (!string.IsNullOrEmpty(settings.BranchName) && settings.BranchName.Length > 255)
+        {
+            return ValidationResult.Error("Branch name has to be shorter then 255 chars.");
+        }
+        
+        if (!string.IsNullOrEmpty(settings.CommitMessage) && settings.CommitMessage.Length > 72)
+        {
+            return ValidationResult.Error("Commit message has to be shorter then 72 chars.");
+        }
         
         return ValidationResult.Success();
     }

@@ -33,32 +33,6 @@ public class BitbucketCloudRepositoryManagerTests
     }
     
     [Fact]
-    public async Task GetFileContentRaw_WillFindSpecificPath_WhenDifferentSlash_AndCallHttpClientWithLink()
-    {
-        var link = "https://example/link";
-
-        var response = CreateSrcResponse("link/file", "commit_file", link);
-
-        var responseContent = Guid.NewGuid().ToString();
-        var mockHttp = new MockHttpMessageHandler();
-        mockHttp
-            .When(link)
-            .Respond(HttpStatusCode.OK, new StringContent(responseContent));
-
-        var baseAddress = "https://example.com/";
-        mockHttp
-            .When($"{baseAddress}src")
-            .Respond(HttpStatusCode.OK, JsonContent.Create(response));
-
-        var httpClient = mockHttp.ToHttpClient();
-        httpClient.BaseAddress = new Uri(baseAddress);
-        var manager = new BitbucketCloudRepositoryManager(httpClient);
-        var content = await manager.GetFileContentRaw("link\\file");
-        
-        Assert.Equal(responseContent, content);
-    }
-
-    [Fact]
     public async Task GetRepositoryFilePaths_WillCollectAllPaths()
     {
         var mockHttp = new MockHttpMessageHandler();

@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
@@ -12,21 +11,22 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
     private readonly HttpClient _httpClient;
     private Dictionary<string, string>? _pathsToAddress;
 
-    public BitbucketCloudRepositoryManager(string baseUrl, string workspace, string repository, string authorizationToken)
+    public BitbucketCloudRepositoryManager(string baseUrl, string workspace, string repository, string authorizationToken) : this(baseUrl, workspace, repository)
     {
-        _httpClient = CreateHttpClient(baseUrl, workspace, repository);
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authorizationToken);
     }
     
-    public BitbucketCloudRepositoryManager(string baseUrl, string workspace, string repository, (string userName, string password) credentials)
+    public BitbucketCloudRepositoryManager(string baseUrl, string workspace, string repository, (string userName, string password) credentials) : this(baseUrl, workspace, repository)
     {
-        _httpClient = CreateHttpClient(baseUrl, workspace, repository);
         var header = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{credentials.userName}:{credentials.password}"));
         _httpClient.DefaultRequestHeaders.Authorization = AuthenticationHeaderValue.Parse($"Basic {header}");
     }
 
     public BitbucketCloudRepositoryManager(string baseUrl, string workspace, string repository)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(baseUrl);
+        ArgumentException.ThrowIfNullOrWhiteSpace(workspace);
+        ArgumentException.ThrowIfNullOrWhiteSpace(repository);
         _httpClient = CreateHttpClient(baseUrl, workspace, repository);
     }
 
@@ -90,16 +90,11 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         {
             if (!_pathsToAddress.TryGetValue(filePath, out var link))
             {
-                //Some paths could use backslash (like sln project paths)
-                if (!_pathsToAddress.TryGetValue(filePath.Replace("\\", "/"), out var link2))
-                {
-                    throw new ArgumentException($"Given file path ({filePath}) could not be find among repository paths.", nameof(filePath));
-                }
-
-                link = link2;
+                throw new ArgumentException($"Given file path ({filePath}) could not be find among repository paths.", nameof(filePath));
             }
 
             using var response = await _httpClient.GetAsync(link);
+            //TODO: Handle error
             response.EnsureSuccessStatusCode();
             
             return await response.Content.ReadAsStringAsync();
@@ -110,9 +105,21 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         return await GetFileContentRaw(filePath);
     }
 
-    public Task<Commit> EditFile(string branch, string commitMessage, string content, string filePath)
+    //TODO: Test multiple commits on same branch
+    public async Task<Commit> CreateCommit(string branch, string commitMessage, List<(string filePath, string content)> files)
     {
-        throw new NotImplementedException();
+        var form = new MultipartFormDataContent();
+        form.Add(new StringContent(commitMessage), "message");
+        form.Add(new StringContent(branch), "branch");
+        foreach (var (filePath, content) in files)
+        {
+            form.Add(new StringContent(content), filePath);
+        }
+        
+        using var response = await _httpClient.PostAsync("src", form);
+        //TODO: Handle error
+        response.EnsureSuccessStatusCode();
+        return new Commit();
     }
 
     public Task CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description)

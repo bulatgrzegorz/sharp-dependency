@@ -56,7 +56,7 @@ public interface IRepositoryManger
     Task<IEnumerable<string>> GetRepositoryFilePaths();
     Task<FileContent> GetFileContent(string filePath);
     Task<string> GetFileContentRaw(string filePath);
-    Task<Commit> EditFile(string branch, string commitMessage, string content, string filePath);
+    Task<Commit> CreateCommit(string branch, string commitMessage, List<(string filePath, string content)> files);
     Task CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description);
 }
 

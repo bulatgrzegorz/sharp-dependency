@@ -1,6 +1,4 @@
 ﻿using System.ComponentModel;
-using System.Diagnostics;
-using Microsoft.Extensions.Configuration;
 using NuGet.Configuration;
 using Spectre.Console;
 using Spectre.Console.Cli;
