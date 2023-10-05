@@ -1,8 +1,5 @@
-﻿using sharp_dependency;
-using sharp_dependency.cli;
+﻿using sharp_dependency.cli;
 using Spectre.Console.Cli;
-
-var b = new BitbucketCloudRepositoryManager("a", "w", "r", "a");
 
 var app = new CommandApp();
 app.Configure(config =>
