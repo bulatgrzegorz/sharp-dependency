@@ -105,7 +105,6 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         return await GetFileContentRaw(filePath);
     }
 
-    //TODO: Test multiple commits on same branch
     public async Task<Commit> CreateCommit(string branch, string commitMessage, List<(string filePath, string content)> files)
     {
         var form = new MultipartFormDataContent();
@@ -122,7 +121,12 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         return new Commit();
     }
 
-    public Task CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description)
+    public Task<BitbucketServerRepositoryManager.CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<BitbucketServerRepositoryManager.CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string name, string description)
     {
         throw new NotImplementedException();
     }

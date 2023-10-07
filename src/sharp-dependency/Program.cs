@@ -1,9 +1,9 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using NuGet.Versioning;
+using sharp_dependency;
 
 //TODO: Some configuration file, where it will be possible to configure which dependencies and how should be updated
 //TODO: CLI tool - update remote repository (with PR)
-//TODO: Implementations as Bitbucket should be more generic, allowing user to configure many of them with auth method
 //TODO: Support directory.build.props files
 //TODO: Support target framework conditions in csproj item groups
 
@@ -57,7 +57,8 @@ public interface IRepositoryManger
     Task<FileContent> GetFileContent(string filePath);
     Task<string> GetFileContentRaw(string filePath);
     Task<Commit> CreateCommit(string branch, string commitMessage, List<(string filePath, string content)> files);
-    Task CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description);
+    Task<BitbucketServerRepositoryManager.CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description);
+    Task<BitbucketServerRepositoryManager.CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string name, string description);
 }
 
 public class ProjectFile

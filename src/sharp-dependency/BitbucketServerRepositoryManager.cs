@@ -40,6 +40,7 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         ArgumentException.ThrowIfNullOrWhiteSpace(projectName);
         _repositoryName = repositoryName;
         _projectName = projectName;
+        //TODO: Refactor this, we could create separate http client for branch requests - or use shorter base address 
         _branchApiAddress = $"{baseUrl}/rest/branch-utils/latest/projects/{projectName}/repos/{repositoryName}/branches/";
         _httpClient = new HttpClient(){BaseAddress = new Uri($"{baseUrl}/rest/api/latest/projects/{projectName}/repos/{repositoryName}/")};
     }
@@ -80,11 +81,20 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
     
     public async Task<Commit> CreateCommit(string branch, string commitMessage, List<(string filePath, string content)> files)
     {
-        var mainTip = await GetDefaultBranch();
-        //TODO: What if branch already exists? Maybe we should create branch at beginning (if not exists) and then just do everything on it 
-        await CreateBranchIfNotExists(branch, mainTip.Id);
+        string commitId; 
+        var branchToCommitOn = await GetBranch(branch);
+        if (branchToCommitOn is null)
+        {
+            var mainTip = await GetDefaultBranch();
+            var createdBranch = await CreateBranch(branch, mainTip.Id);
 
-        var commitId = mainTip.LatestCommit;
+            commitId = createdBranch.LatestCommit;
+        }
+        else
+        {
+            commitId = branchToCommitOn.LatestCommit;
+        }
+
         foreach (var (filePath, content) in files)
         {
             var createCommitResponse = await CreateCommit(branch, commitId, commitMessage, content, filePath);
@@ -93,26 +103,29 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
                 Console.WriteLine("Something went wrong while creating commit [{0}]({1}) on file: {2}", branch, commitMessage, filePath);
                 throw new Exception($"Something went wrong while creating commit [{branch}]({commitMessage}) on file: {filePath}");
             }
-            
+
+            Console.WriteLine($"Change ({filePath}) committed on ({createCommitResponse.Id}).");
             commitId = createCommitResponse.Id;
         }
 
         return new Commit();
     }
     
-    private async Task<GetBranchesResponse.Branch?> GetBranch(string branchName)
+    private async Task<Branch?> GetBranch(string branchName)
     {
-        var branchNameForSearch = branchName.StartsWith("refs/heads/") ? branchName : $"refs/heads/{branchName}";
+        var branchNameForSearch = ToRefBranchName(branchName);
 
-        var getBranchesTask = new Lazy<Task<IReadOnlyCollection<GetBranchesResponse.Branch>>>(GetBranchesInternal);
+        var getBranchesTask = new Lazy<Task<IReadOnlyCollection<Branch>>>(GetBranchesInternal);
         var branches = await _memoryCache.GetOrCreate("branches", _ => getBranchesTask)!.Value;
 
         return branches.SingleOrDefault(x => x.Id.Equals(branchNameForSearch, StringComparison.InvariantCultureIgnoreCase));
     }
 
-    private async Task<GetBranchesResponse.Branch> GetDefaultBranch()
+    private static string ToRefBranchName(string branchName) => branchName.StartsWith("refs/heads/") ? branchName : $"refs/heads/{branchName}";
+
+    private async Task<Branch> GetDefaultBranch()
     {
-        var getBranchesTask = new Lazy<Task<IReadOnlyCollection<GetBranchesResponse.Branch>>>(GetBranchesInternal);
+        var getBranchesTask = new Lazy<Task<IReadOnlyCollection<Branch>>>(GetBranchesInternal);
         var branches = await _memoryCache.GetOrCreate("branches", _ => getBranchesTask)!.Value;
 
         var defaultBranch = branches.SingleOrDefault(x => x.IsDefault);
@@ -124,35 +137,97 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         return defaultBranch;
     }
 
-    private async Task<IReadOnlyCollection<GetBranchesResponse.Branch>> GetBranchesInternal()
+    private async Task<IReadOnlyCollection<Branch>> GetBranchesInternal()
     {
         var response = await _httpClient.GetFromJsonAsync<GetBranchesResponse>($"branches?limit={PathsLimit}");
-        return response?.Values.Where(x => x.IsBranch).ToList() ?? new List<GetBranchesResponse.Branch>();
+        return response?.Values.Where(x => x.IsBranch).ToList() ?? new List<Branch>();
     }
 
-    private async Task CreateBranchIfNotExists(string branchName, string fromBranch)
+    private async Task<Branch> CreateBranch(string branchName, string fromBranch)
     {
-        using var branchResponse = await _httpClient.GetAsync($"{_branchApiAddress}info/{branchName}");
-        if (branchResponse.StatusCode == HttpStatusCode.OK)
-        {
-            return;
-        }
-
         using var createBranchResponse = await _httpClient.PostAsJsonAsync($"{_branchApiAddress}", new { name = branchName, startPoint = fromBranch });
         if (createBranchResponse.StatusCode == HttpStatusCode.Created)
         {
-            return;
+            _memoryCache.Remove("branches");
+            return (await createBranchResponse.Content.ReadFromJsonAsync<Branch>())!;
         }
 
-        //TODO: Handle error
-        createBranchResponse.EnsureSuccessStatusCode();
+        throw new Exception($"Could not create branch {branchName} from start point branch {fromBranch}. Sharp-dependency can not proceed.");
     }
 
-    public Task CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description)
+    public async Task<CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string targetBranch, string name, string description)
     {
-        throw new NotImplementedException();
+        var repositoryInfo = await GetRepository();
+
+        var response = await _httpClient.PostAsJsonAsync("pull-requests", new
+        {
+            title = name,
+            description,
+            state = "OPEN",
+            open = true,
+            close = false,
+            locked = false,
+            fromRef = new
+            {
+                Id = ToRefBranchName(sourceBranch),
+                repository = repositoryInfo
+            },
+            toRef = new
+            {
+                Id = ToRefBranchName(targetBranch),
+                repository = repositoryInfo
+            }
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Could not create pull-request ({sourceBranch} -> {targetBranch}) on repository {_repositoryName} in {_projectName}. Sharp-dependency can not proceed.");
+        }
+
+        var content = await response.Content.ReadFromJsonAsync<CreatePullRequestResponse>();
+
+        Console.WriteLine("Created pull-request ({0} -> {1}) with id ({2})", sourceBranch, targetBranch, content?.Id);
+        
+        return content!;
     }
 
+    public async Task<CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string name, string description)
+    {
+        var defaultBranch = await GetDefaultBranch();
+        return await CreatePullRequest(sourceBranch, defaultBranch.Id, name, description);
+    }
+
+    private async Task<GetRepositoryResponse> GetRepository()
+    {
+        var response = await _httpClient.GetAsync((string?)default);
+        if (response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadFromJsonAsync<GetRepositoryResponse>();
+            if (content is not null)
+            {
+                return content;
+            }
+        }
+
+        throw new Exception($"Could not collect information about repository {_repositoryName} in project {_projectName}. Sharp-dependency cannot proceed.");
+    }
+
+    private class GetRepositoryResponse
+    {
+        public string Slug { get; set; }
+        public string Name { get; set; }
+        public ProjectRef Project { get; set; }
+        public class ProjectRef
+        {
+            public string Key { get; set; }
+        }
+    }
+
+    public class CreatePullRequestResponse
+    {
+        public int Id { get; set; }
+    }
+    
     private class CreateCommitResponse
     {
         public string Id { get; set; }
@@ -161,15 +236,15 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
     private class GetBranchesResponse
     {
         public IEnumerable<Branch> Values { get; set; }
+    }
 
-        public class Branch
-        {
-            public string Id { get; set; }
-            public string Type { get; set; }
-            public bool IsDefault { get; set; }
-            public string LatestCommit { get; set; }
-            public bool IsBranch => Type.Equals("BRANCH", StringComparison.InvariantCultureIgnoreCase);
-        }
+    private class Branch
+    {
+        public string Id { get; set; }
+        public string Type { get; set; }
+        public bool IsDefault { get; set; }
+        public string LatestCommit { get; set; }
+        public bool IsBranch => Type.Equals("BRANCH", StringComparison.InvariantCultureIgnoreCase);
     }
     
     private class GetRepositoryFilePathsResponse

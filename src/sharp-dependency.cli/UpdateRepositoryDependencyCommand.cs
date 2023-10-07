@@ -137,7 +137,9 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
             }
         }
 
-        await bitbucketManager.CreateCommit(settings.BranchName ?? "sharp-dependency", settings.CommitMessage ?? "update dependencies", results);
+        var branch = settings.BranchName ?? "sharp-dependency";
+        await bitbucketManager.CreateCommit(branch, settings.CommitMessage ?? "update dependencies", results);
+        await bitbucketManager.CreatePullRequest(branch, $"[{branch}] pull request", "pr descr");
         
         return 0;
     }
