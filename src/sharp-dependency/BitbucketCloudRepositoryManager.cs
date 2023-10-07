@@ -121,12 +121,12 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         return new Commit();
     }
 
-    public Task<BitbucketServerRepositoryManager.CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description)
+    public Task<PullRequest> CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description)
     {
         throw new NotImplementedException();
     }
 
-    public Task<BitbucketServerRepositoryManager.CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string name, string description)
+    public Task<PullRequest> CreatePullRequest(string sourceBranch, string name, string description)
     {
         throw new NotImplementedException();
     }

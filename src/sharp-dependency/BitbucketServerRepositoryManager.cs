@@ -155,7 +155,7 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         throw new Exception($"Could not create branch {branchName} from start point branch {fromBranch}. Sharp-dependency can not proceed.");
     }
 
-    public async Task<CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string targetBranch, string name, string description)
+    public async Task<PullRequest> CreatePullRequest(string sourceBranch, string targetBranch, string name, string description)
     {
         var repositoryInfo = await GetRepository();
 
@@ -184,14 +184,14 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
             throw new Exception($"Could not create pull-request ({sourceBranch} -> {targetBranch}) on repository {_repositoryName} in {_projectName}. Sharp-dependency can not proceed.");
         }
 
-        var content = await response.Content.ReadFromJsonAsync<CreatePullRequestResponse>();
+        var content = await response.Content.ReadFromJsonAsync<PullRequest>();
 
-        Console.WriteLine("Created pull-request ({0} -> {1}) with id ({2})", sourceBranch, targetBranch, content?.Id);
+        Console.WriteLine("Created pull-request ({0}) with id ({1})", name, content?.Id);
         
         return content!;
     }
 
-    public async Task<CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string name, string description)
+    public async Task<PullRequest> CreatePullRequest(string sourceBranch, string name, string description)
     {
         var defaultBranch = await GetDefaultBranch();
         return await CreatePullRequest(sourceBranch, defaultBranch.Id, name, description);
@@ -223,11 +223,6 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         }
     }
 
-    public class CreatePullRequestResponse
-    {
-        public int Id { get; set; }
-    }
-    
     private class CreateCommitResponse
     {
         public string Id { get; set; }
@@ -260,10 +255,5 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         {
             public string Text { get; set; }
         }
-    }
-    
-    private class EditFileResponse
-    {
-        public string Id { get; set; }
     }
 }

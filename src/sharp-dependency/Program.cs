@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using NuGet.Versioning;
-using sharp_dependency;
 
 //TODO: Some configuration file, where it will be possible to configure which dependencies and how should be updated
 //TODO: CLI tool - update remote repository (with PR)
@@ -57,8 +56,8 @@ public interface IRepositoryManger
     Task<FileContent> GetFileContent(string filePath);
     Task<string> GetFileContentRaw(string filePath);
     Task<Commit> CreateCommit(string branch, string commitMessage, List<(string filePath, string content)> files);
-    Task<BitbucketServerRepositoryManager.CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description);
-    Task<BitbucketServerRepositoryManager.CreatePullRequestResponse> CreatePullRequest(string sourceBranch, string name, string description);
+    Task<PullRequest> CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description);
+    Task<PullRequest> CreatePullRequest(string sourceBranch, string name, string description);
 }
 
 public class ProjectFile
@@ -71,6 +70,11 @@ public class ProjectFile
 
     public IReadOnlyCollection<Dependency> Dependencies { get; private set; }
     public IReadOnlyCollection<string> TargetFrameworks { get; private set; }
+}
+
+public class PullRequest
+{
+    public int Id { get; set; }
 }
 
 public class FileContent
