@@ -25,7 +25,9 @@ public class ProjectFileParser : IAsyncDisposable
     public async Task<string> Generate()
     {
         using var memoryStream = new MemoryStream();
-        //TODO: We do not know whatever file encoding have contain BOM or not. We should generate updated content with respect of original format.
+        //There is no way (other then cloning repository I think) to know if file was saved with BOM or not.
+        //Because of it we basically had to choose neither to add byte-order marker or not.
+        //Based on conversations like: https://github.com/dotnet/aspnetcore/issues/28697 we are not going to add it.
         await using var xmlWriter = XmlWriter.Create(memoryStream, new XmlWriterSettings() { Encoding = Utf8EncodingWithoutBom, OmitXmlDeclaration = true, Async = true});
         
         await _xmlFile.WriteToAsync(xmlWriter, CancellationToken.None);
