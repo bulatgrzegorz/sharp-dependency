@@ -1,5 +1,8 @@
 ﻿using System.ComponentModel;
 using NuGet.Configuration;
+using sharp_dependency.Parsers;
+using sharp_dependency.Repositories;
+using sharp_dependency.Repositories.Bitbucket;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using CloudBitbucket = sharp_dependency.cli.Configuration.Bitbucket.CloudBitbucket;

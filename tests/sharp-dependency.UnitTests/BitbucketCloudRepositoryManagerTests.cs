@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using RichardSzalay.MockHttp;
+using sharp_dependency.Repositories.Bitbucket;
 
 namespace sharp_dependency.UnitTests;
 

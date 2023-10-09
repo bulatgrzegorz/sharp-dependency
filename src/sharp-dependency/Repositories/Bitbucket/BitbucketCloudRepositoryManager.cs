@@ -3,7 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 
-namespace sharp_dependency;
+namespace sharp_dependency.Repositories.Bitbucket;
 
 //https://developer.atlassian.com/cloud/bitbucket/rest/intro
 public class BitbucketCloudRepositoryManager: IRepositoryManger
@@ -228,5 +228,10 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         {
             public string Href { get; set; }
         }
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
     }
 }

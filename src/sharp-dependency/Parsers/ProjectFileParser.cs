@@ -3,9 +3,9 @@ using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
 
-namespace sharp_dependency;
+namespace sharp_dependency.Parsers;
 
-public class ProjectFileParser : IFileParser, IAsyncDisposable
+public class ProjectFileParser : IAsyncDisposable
 {
     private static readonly UTF8Encoding Utf8EncodingWithoutBom = new(false);
     private readonly MemoryStream _fileContent;

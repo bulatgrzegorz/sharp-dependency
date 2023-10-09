@@ -1,4 +1,7 @@
-﻿namespace sharp_dependency.UnitTests;
+﻿using sharp_dependency.Parsers;
+using sharp_dependency.Repositories;
+
+namespace sharp_dependency.UnitTests;
 
 public class SolutionFileParserTests
 {

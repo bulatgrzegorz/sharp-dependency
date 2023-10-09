@@ -4,7 +4,7 @@ using System.Net.Http.Json;
 using System.Text;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace sharp_dependency;
+namespace sharp_dependency.Repositories.Bitbucket;
 
 //TODO: Need also think about determining if pull request for some specific change was already created and we do not need to create another one.
 //There is also possibility that pull request should be updated, because another dependency update has been found 
@@ -255,5 +255,11 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         {
             public string Text { get; set; }
         }
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        _memoryCache.Dispose();
     }
 }

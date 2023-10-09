@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
+using sharp_dependency.Repositories;
 
-namespace sharp_dependency;
+namespace sharp_dependency.Parsers;
 
 public partial class SolutionFileParser
 {

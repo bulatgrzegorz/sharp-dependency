@@ -1,5 +1,7 @@
 ﻿using System.ComponentModel;
 using NuGet.Configuration;
+using sharp_dependency.Parsers;
+using sharp_dependency.Repositories;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
