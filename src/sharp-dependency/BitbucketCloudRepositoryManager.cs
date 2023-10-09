@@ -10,6 +10,8 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
 {
     private readonly HttpClient _httpClient;
     private Dictionary<string, string>? _pathsToAddress;
+    private readonly string _repositoryName;
+    private readonly string _workspace;
 
     public BitbucketCloudRepositoryManager(string baseUrl, string workspace, string repository, string authorizationToken) : this(baseUrl, workspace, repository)
     {
@@ -27,6 +29,8 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         ArgumentException.ThrowIfNullOrWhiteSpace(baseUrl);
         ArgumentException.ThrowIfNullOrWhiteSpace(workspace);
         ArgumentException.ThrowIfNullOrWhiteSpace(repository);
+        _repositoryName = repository;
+        _workspace = workspace;
         _httpClient = CreateHttpClient(baseUrl, workspace, repository);
     }
 
@@ -121,14 +125,67 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         return new Commit();
     }
 
-    public Task<PullRequest> CreatePullRequest(string sourceBranch, string targetBranch, string prName, string description)
+    public async Task<PullRequest> CreatePullRequest(string sourceBranch, string targetBranch, string name, string description)
     {
-        throw new NotImplementedException();
+        var response = await _httpClient.PostAsJsonAsync("pullrequests", new
+        {
+            title = name,
+            description,
+            close_source_branch = true,
+            source = new
+            {
+                branch = new
+                {
+                    name = sourceBranch
+                }
+            },
+            destination = new
+            {
+                branch = new
+                {
+                    name = targetBranch
+                }
+            }
+        });
+        
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Could not create pull-request (from branch {sourceBranch} on repository {_repositoryName} in {_workspace}. Sharp-dependency can not proceed.");
+        }
+
+        var content = await response.Content.ReadFromJsonAsync<PullRequest>();
+
+        Console.WriteLine("Created pull-request ({0}) with id ({1})", name, content?.Id);
+        
+        return content!;
     }
 
-    public Task<PullRequest> CreatePullRequest(string sourceBranch, string name, string description)
+    public async Task<PullRequest> CreatePullRequest(string sourceBranch, string name, string description)
     {
-        throw new NotImplementedException();
+        var response = await _httpClient.PostAsJsonAsync("pullrequests", new
+        {
+            title = name,
+            description,
+            close_source_branch = true,
+            source = new
+            {
+                branch = new
+                {
+                    name = sourceBranch
+                }
+            }
+        });
+        
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Could not create pull-request (from branch {sourceBranch} on repository {_repositoryName} in {_workspace}. Sharp-dependency can not proceed.");
+        }
+
+        var content = await response.Content.ReadFromJsonAsync<PullRequest>();
+
+        Console.WriteLine("Created pull-request ({0}) with id ({1})", name, content?.Id);
+        
+        return content!;
     }
 
     private static async Task<GetSrcResponse?> GetSrc(HttpClient httpClient, string url)
