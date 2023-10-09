@@ -11,26 +11,30 @@ namespace sharp_dependency.Repositories.Bitbucket;
 //https://developer.atlassian.com/server/bitbucket/rest/v811/intro/#about
 public class BitbucketServerRepositoryManager : IRepositoryManger
 {
-    private readonly HttpClient _httpClient;
+    private readonly HttpClient _apiHttpClient;
+    private readonly HttpClient _branchesHttpClient;
     private const int PathsLimit = 1000;
-    private readonly string _branchApiAddress;
     private readonly string _repositoryName;
     private readonly string _projectName;
     private readonly MemoryCache _memoryCache = new(new MemoryCacheOptions());
 
     public BitbucketServerRepositoryManager(string baseUrl, string repositoryName, string projectName, string authorizationToken) : this(baseUrl, repositoryName, projectName)
     {
-        _httpClient.DefaultRequestHeaders.Authorization = AuthenticationHeaderValue.Parse($"Bearer {authorizationToken}");
+        var authenticationHeader = AuthenticationHeaderValue.Parse($"Bearer {authorizationToken}");
+        _apiHttpClient.DefaultRequestHeaders.Authorization = authenticationHeader;
+        _branchesHttpClient.DefaultRequestHeaders.Authorization = authenticationHeader;
         //methods that accept multipart/form-data will only process requests with X-Atlassian-Token: no-check header.
-        _httpClient.DefaultRequestHeaders.Add("X-Atlassian-Token", "no-check");
+        _apiHttpClient.DefaultRequestHeaders.Add("X-Atlassian-Token", "no-check");
     }
     
     public BitbucketServerRepositoryManager(string baseUrl, string repositoryName, string projectName, (string userName, string password) credentials) : this(baseUrl, repositoryName, projectName)
     {
         var header = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{credentials.userName}:{credentials.password}"));
-        _httpClient.DefaultRequestHeaders.Authorization = AuthenticationHeaderValue.Parse($"Basic {header}");
+        var authenticationHeader = AuthenticationHeaderValue.Parse($"Basic {header}");
+        _apiHttpClient.DefaultRequestHeaders.Authorization = authenticationHeader;
+        _branchesHttpClient.DefaultRequestHeaders.Authorization = authenticationHeader;
         //methods that accept multipart/form-data will only process requests with X-Atlassian-Token: no-check header.
-        _httpClient.DefaultRequestHeaders.Add("X-Atlassian-Token", "no-check");
+        _apiHttpClient.DefaultRequestHeaders.Add("X-Atlassian-Token", "no-check");
     }
     
     public BitbucketServerRepositoryManager(string baseUrl, string repositoryName, string projectName)
@@ -40,27 +44,27 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         ArgumentException.ThrowIfNullOrWhiteSpace(projectName);
         _repositoryName = repositoryName;
         _projectName = projectName;
-        //TODO: Refactor this, we could create separate http client for branch requests - or use shorter base address 
-        _branchApiAddress = $"{baseUrl}/rest/branch-utils/latest/projects/{projectName}/repos/{repositoryName}/branches/";
-        _httpClient = new HttpClient(){BaseAddress = new Uri($"{baseUrl}/rest/api/latest/projects/{projectName}/repos/{repositoryName}/")};
+        
+        _branchesHttpClient = new HttpClient(){BaseAddress = new Uri($"{baseUrl}/rest/branch-utils/latest/projects/{projectName}/repos/{repositoryName}/")}; 
+        _apiHttpClient = new HttpClient(){BaseAddress = new Uri($"{baseUrl}/rest/api/latest/projects/{projectName}/repos/{repositoryName}/")};
     }
 
     public async Task<IEnumerable<string>> GetRepositoryFilePaths()
     {
         //TODO: We should make those as long as there are still files to be collected
-        var response = await _httpClient.GetFromJsonAsync<GetRepositoryFilePathsResponse>($"files?limit={PathsLimit}");
+        var response = await _apiHttpClient.GetFromJsonAsync<GetRepositoryFilePathsResponse>($"files?limit={PathsLimit}");
         return response?.Values ?? Enumerable.Empty<string>();
     }
 
     public async Task<string> GetFileContentRaw(string filePath)
     {
-        var response = await _httpClient.GetAsync($"raw/{filePath}");
+        var response = await _apiHttpClient.GetAsync($"raw/{filePath}");
         return await response.Content.ReadAsStringAsync();
     }
 
     public async Task<FileContent> GetFileContent(string filePath)
     {
-        var response = await _httpClient.GetFromJsonAsync<GetFileContentResponse>($"browse/{filePath}");
+        var response = await _apiHttpClient.GetFromJsonAsync<GetFileContentResponse>($"browse/{filePath}");
         return new FileContent(response?.Lines.Select(x => x.Text) ?? Enumerable.Empty<string>(), filePath);
     }
 
@@ -72,7 +76,7 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         request.Add(new StringContent(content), "content");
         request.Add(new StringContent(sourceCommitId), "sourceCommitId");
         
-        using var response = await _httpClient.PutAsync($"browse/{filePath}", request);
+        using var response = await _apiHttpClient.PutAsync($"browse/{filePath}", request);
         //TODO: Handle error
         response.EnsureSuccessStatusCode();
 
@@ -139,13 +143,13 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
 
     private async Task<IReadOnlyCollection<Branch>> GetBranchesInternal()
     {
-        var response = await _httpClient.GetFromJsonAsync<GetBranchesResponse>($"branches?limit={PathsLimit}");
+        var response = await _apiHttpClient.GetFromJsonAsync<GetBranchesResponse>($"branches?limit={PathsLimit}");
         return response?.Values.Where(x => x.IsBranch).ToList() ?? new List<Branch>();
     }
 
     private async Task<Branch> CreateBranch(string branchName, string fromBranch)
     {
-        using var createBranchResponse = await _httpClient.PostAsJsonAsync($"{_branchApiAddress}", new { name = branchName, startPoint = fromBranch });
+        using var createBranchResponse = await _branchesHttpClient.PostAsJsonAsync("branches", new { name = branchName, startPoint = fromBranch });
         if (createBranchResponse.StatusCode == HttpStatusCode.Created)
         {
             _memoryCache.Remove("branches");
@@ -159,7 +163,7 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
     {
         var repositoryInfo = await GetRepository();
 
-        var response = await _httpClient.PostAsJsonAsync("pull-requests", new
+        var response = await _apiHttpClient.PostAsJsonAsync("pull-requests", new
         {
             title = name,
             description,
@@ -199,7 +203,7 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
 
     private async Task<GetRepositoryResponse> GetRepository()
     {
-        var response = await _httpClient.GetAsync((string?)default);
+        var response = await _apiHttpClient.GetAsync((string?)default);
         if (response.IsSuccessStatusCode)
         {
             var content = await response.Content.ReadFromJsonAsync<GetRepositoryResponse>();
@@ -259,7 +263,8 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
 
     public void Dispose()
     {
-        _httpClient.Dispose();
+        _apiHttpClient.Dispose();
+        _branchesHttpClient.Dispose();
         _memoryCache.Dispose();
     }
 }
