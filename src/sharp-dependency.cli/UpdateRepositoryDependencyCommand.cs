@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Text;
 using NuGet.Configuration;
 using sharp_dependency.Parsers;
 using sharp_dependency.Repositories;
@@ -110,8 +111,11 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
 
         //TODO: We should check if anything was actually updated in project before
         var results = new List<(string filePath, string updatedContent)>(projectPaths.Count);
+        var projectUpdatedDependencies = new List<(string filePath, List<(string name, string oldVersion, string newVersion)> dependencies)>();
         foreach (var projectPath in projectPaths)
         {
+            var updatedDependencies = new List<(string name, string oldVersion, string newVersion)>();
+            projectUpdatedDependencies.Add((projectPath, updatedDependencies));
             Console.WriteLine("{0}", projectPath);
 
             var projectContent = await bitbucketManager.GetFileContentRaw(projectPath);
@@ -127,13 +131,13 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
 
                 if (dependency.UpdateVersionIfPossible(allVersions, out var newVersion))
                 {
+                    updatedDependencies.Add((dependency.Name, dependency.CurrentVersion, newVersion.ToString()));
                     Console.WriteLine("     {0} {1} -> {2}", dependency.Name, dependency.CurrentVersion, newVersion);    
                 }
             }
             
             var updatedProjectContent = await projectFileParser.Generate();
             
-            //TODO: Finish editing files in repository and creating PR 
             if (!settings.DryRun)
             {
                 results.Add((projectPath, updatedProjectContent));
@@ -142,7 +146,19 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
 
         var branch = settings.BranchName ?? "sharp-dependency";
         await bitbucketManager.CreateCommit(branch, settings.CommitMessage ?? "update dependencies", results);
-        await bitbucketManager.CreatePullRequest(branch, $"[{branch}] pull request", "pr descr");
+        
+        //TODO: Can't make new lines work correctly on bitbucket cloud. Maybe we should use markdown.
+        var pullRequestDescriptionBuilder = new StringBuilder();
+        pullRequestDescriptionBuilder.Append("Updated:");
+        foreach (var (projectFile, dependencies) in projectUpdatedDependencies.Where(x => x.dependencies is {Count: > 0}))
+        {
+            pullRequestDescriptionBuilder.Append($" \n{projectFile}");
+            foreach (var (dependencyName, oldVersion, newVersion) in dependencies)
+            {
+                pullRequestDescriptionBuilder.Append($" \n      {dependencyName} {oldVersion} -> {newVersion}");
+            }
+        }
+        await bitbucketManager.CreatePullRequest(branch, $"[{branch}] pull request", pullRequestDescriptionBuilder.ToString());
         
         return 0;
     }
