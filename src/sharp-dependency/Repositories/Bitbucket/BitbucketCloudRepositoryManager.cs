@@ -35,8 +35,10 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
     }
 
     //Used in tests
-    internal BitbucketCloudRepositoryManager(HttpClient httpClient)
+    internal BitbucketCloudRepositoryManager(string workspace, string repository, HttpClient httpClient)
     {
+        _workspace = workspace;
+        _repositoryName = repository;
         _httpClient = httpClient;
     }
 
@@ -98,9 +100,11 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
             }
 
             using var response = await _httpClient.GetAsync(link);
-            //TODO: Handle error
-            response.EnsureSuccessStatusCode();
-            
+            if (!response.IsSuccessStatusCode)
+            {
+                throw CreateException($"Could not collect file content {filePath})", response.ReasonPhrase);
+            }
+
             return await response.Content.ReadAsStringAsync();
         }
 
@@ -120,8 +124,11 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         }
         
         using var response = await _httpClient.PostAsync("src", form);
-        //TODO: Handle error
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw CreateException($"Could not create commit (on branch {branch} with message: {commitMessage})", response.ReasonPhrase);
+        }
+        
         return new Commit();
     }
 
@@ -150,7 +157,7 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         
         if (!response.IsSuccessStatusCode)
         {
-            throw new Exception($"Could not create pull-request (from branch {sourceBranch} on repository {_repositoryName} in {_workspace}. Sharp-dependency can not proceed.");
+            throw CreateException($"Could not create pull-request (from branch {sourceBranch})", response.ReasonPhrase);
         }
 
         var content = await response.Content.ReadFromJsonAsync<PullRequest>();
@@ -178,7 +185,7 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         
         if (!response.IsSuccessStatusCode)
         {
-            throw new Exception($"Could not create pull-request (from branch {sourceBranch} on repository {_repositoryName} in {_workspace}. Sharp-dependency can not proceed.");
+            throw CreateException($"Could not create pull-request (from branch {sourceBranch})", response.ReasonPhrase);
         }
 
         var content = await response.Content.ReadFromJsonAsync<PullRequest>();
@@ -191,7 +198,6 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
     private static async Task<GetSrcResponse?> GetSrc(HttpClient httpClient, string url)
     {
         using var response = await httpClient.GetAsync(url);
-        var r = await response.Content.ReadAsStringAsync();
         return response.StatusCode switch
         {
             HttpStatusCode.OK => await response.Content.ReadFromJsonAsync<GetSrcResponse>(),
@@ -199,6 +205,12 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
             HttpStatusCode.NotFound when !url.Equals(response.RequestMessage!.RequestUri?.ToString()) => await GetSrc(httpClient, response.RequestMessage.RequestUri!.ToString()),
             _ => null
         };
+    }
+
+    private Exception CreateException(string messagePrefix, string? innerMessage)
+    {
+        var renderedInnerMessage = innerMessage is null ? null : $" {Environment.NewLine}Inner message: {innerMessage}"; 
+        throw new Exception($"{messagePrefix} on repository {_repositoryName} in {_workspace}. Sharp-dependency can not proceed.{renderedInnerMessage}");
     }
 
     // ReSharper disable once ClassNeverInstantiated.Local

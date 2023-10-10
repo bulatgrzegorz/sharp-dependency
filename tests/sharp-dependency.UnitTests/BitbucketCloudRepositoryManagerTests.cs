@@ -7,6 +7,9 @@ namespace sharp_dependency.UnitTests;
 
 public class BitbucketCloudRepositoryManagerTests
 {
+    private const string WorkspaceName = "workspace";
+    private const string RepositoryName = "example";
+    
     [Fact]
     public async Task GetFileContentRaw_WillFindSpecificPath_AndCallHttpClientWithLink()
     {
@@ -27,7 +30,7 @@ public class BitbucketCloudRepositoryManagerTests
 
         var httpClient = mockHttp.ToHttpClient();
         httpClient.BaseAddress = new Uri(baseAddress);
-        var manager = new BitbucketCloudRepositoryManager(httpClient);
+        var manager = new BitbucketCloudRepositoryManager(WorkspaceName, RepositoryName, httpClient);
         var content = await manager.GetFileContentRaw("link/file");
         
         Assert.Equal(responseContent, content);
@@ -51,7 +54,7 @@ public class BitbucketCloudRepositoryManagerTests
 
         var httpClient = mockHttp.ToHttpClient();
         httpClient.BaseAddress = new Uri(baseAddress);
-        var manager = new BitbucketCloudRepositoryManager(httpClient);
+        var manager = new BitbucketCloudRepositoryManager(WorkspaceName, RepositoryName, httpClient);
         var paths = await manager.GetRepositoryFilePaths();
         
         Assert.Equal(new[]{"link/file", "proj/file1"}, paths);

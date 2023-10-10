@@ -77,8 +77,10 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         request.Add(new StringContent(sourceCommitId), "sourceCommitId");
         
         using var response = await _apiHttpClient.PutAsync($"browse/{filePath}", request);
-        //TODO: Handle error
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw CreateException($"Could not create commit on {branch} with file {filePath}", null);
+        }
 
         return await response.Content.ReadFromJsonAsync<CreateCommitResponse>();
     }
@@ -104,8 +106,7 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
             var createCommitResponse = await CreateCommit(branch, commitId, commitMessage, content, filePath);
             if (createCommitResponse is null)
             {
-                Console.WriteLine("Something went wrong while creating commit [{0}]({1}) on file: {2}", branch, commitMessage, filePath);
-                throw new Exception($"Something went wrong while creating commit [{branch}]({commitMessage}) on file: {filePath}");
+                throw CreateException($"Could not create commit on {branch} with file {filePath}", null);
             }
 
             Console.WriteLine($"Change ({filePath}) committed on ({createCommitResponse.Id}).");
@@ -135,7 +136,7 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         var defaultBranch = branches.SingleOrDefault(x => x.IsDefault);
         if (defaultBranch is null)
         {
-            throw new Exception($"Could not find default branch in repository {_repositoryName} in project {_projectName}. Sharp-dependency cannot proceed without it.");
+            throw CreateException($"Could not find default branch", null);
         }
 
         return defaultBranch;
@@ -156,7 +157,7 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
             return (await createBranchResponse.Content.ReadFromJsonAsync<Branch>())!;
         }
 
-        throw new Exception($"Could not create branch {branchName} from start point branch {fromBranch}. Sharp-dependency can not proceed.");
+        throw CreateException($"Could not create branch {branchName} from start point branch {fromBranch}", null);
     }
 
     public async Task<PullRequest> CreatePullRequest(string sourceBranch, string targetBranch, string name, string description)
@@ -185,7 +186,7 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new Exception($"Could not create pull-request ({sourceBranch} -> {targetBranch}) on repository {_repositoryName} in {_projectName}. Sharp-dependency can not proceed.");
+            throw CreateException($"Could not create pull-request ({sourceBranch} -> {targetBranch})", response.ReasonPhrase);
         }
 
         var content = await response.Content.ReadFromJsonAsync<PullRequest>();
@@ -213,7 +214,13 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
             }
         }
 
-        throw new Exception($"Could not collect information about repository {_repositoryName} in project {_projectName}. Sharp-dependency cannot proceed.");
+        throw CreateException($"Could not collect information about repository", response.ReasonPhrase);
+    }
+    
+    private Exception CreateException(string messagePrefix, string? innerMessage)
+    {
+        var renderedInnerMessage = innerMessage is null ? null : $" {Environment.NewLine}Inner message: {innerMessage}"; 
+        throw new Exception($"{messagePrefix} on repository {_repositoryName} in {_projectName}. Sharp-dependency can not proceed.{renderedInnerMessage}");
     }
 
     private class GetRepositoryResponse
