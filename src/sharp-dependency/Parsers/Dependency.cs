@@ -4,7 +4,6 @@ using NuGet.Versioning;
 namespace sharp_dependency.Parsers;
 
 //TODO: Some configuration file, where it will be possible to configure which dependencies and how should be updated
-//TODO: CLI tool - update remote repository (with PR)
 //TODO: Support directory.build.props files
 //TODO: Support target framework conditions in csproj item groups
 public class Dependency
