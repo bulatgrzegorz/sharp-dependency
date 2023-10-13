@@ -9,7 +9,7 @@ public class BitbucketCloudRepositoryManagerTests
 {
     private const string WorkspaceName = "workspace";
     private const string RepositoryName = "example";
-    
+
     [Fact]
     public async Task GetFileContentRaw_WillFindSpecificPath_AndCallHttpClientWithLink()
     {

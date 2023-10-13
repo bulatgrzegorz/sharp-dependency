@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using NuGet.Configuration;
+using SelectiveConditionEvaluator;
 using sharp_dependency.Parsers;
 using sharp_dependency.Repositories;
 using Spectre.Console;
@@ -61,7 +62,28 @@ internal sealed class UpdateLocalDependencyCommand : AsyncCommand<UpdateLocalDep
             var projectFile = await projectFileParser.Parse();
             foreach (var dependency in projectFile.Dependencies)
             {
-                var allVersions = await nugetManager.GetPackageVersions(dependency.Name, projectFile.TargetFrameworks);
+                var targetFrameworks = new List<string>();
+                if (dependency.Conditions.Length > 0)
+                {
+                    foreach (var targetFramework in projectFile.TargetFrameworks)
+                    {
+                        var conditionParser = new SelectiveParser("TargetFramework", targetFramework);
+                        foreach (var dependencyCondition in dependency.Conditions)
+                        {
+                            //TODO: Cache evaluation of given condition with given target framework (there could be same condition for multiple packages in itemGroup.
+                            if (conditionParser.EvaluateSelective(dependencyCondition))
+                            {
+                                targetFrameworks.Add(targetFramework);
+                            }
+                        }
+                    }                
+                }
+                else
+                {
+                    targetFrameworks = projectFile.TargetFrameworks.ToList();
+                }
+
+                var allVersions = await nugetManager.GetPackageVersions(dependency.Name, targetFrameworks);
                 if (allVersions.Count == 0)
                 {
                     continue;

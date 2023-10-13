@@ -136,4 +136,21 @@ public class ProjectFileParserTests
 
 	    Assert.Empty(projectFile.TargetFrameworks);
     }
+
+    [Fact]
+    public async Task ProjectFileParser_ParseCondition()
+    {
+	    var content = """
+<Project>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.6' ">
+    <PackageReference Include="Lib1" Version="1.0.4" />
+  </ItemGroup>
+</Project>
+""";
+	    
+	    await using var parser = new ProjectFileParser(content);
+	    var projectFile = await parser.Parse();
+
+	    Assert.Empty(projectFile.TargetFrameworks);
+    }
 }

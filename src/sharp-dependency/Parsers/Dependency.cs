@@ -8,10 +8,11 @@ namespace sharp_dependency.Parsers;
 //TODO: Support target framework conditions in csproj item groups
 public class Dependency
 {
-    public Dependency(string name, string currentVersion, Action<string> updateVersionMethod)
+    public Dependency(string name, string currentVersion, string[] conditions, Action<string> updateVersionMethod)
     {
         Name = name;
         CurrentVersion = currentVersion;
+        Conditions = conditions;
         UpdateVersionMethod = updateVersionMethod;
         CurrentNugetVersion = NuGetVersion.Parse(CurrentVersion);
         VersionRange = new VersionRange(CurrentNugetVersion, new FloatRange(NuGetVersionFloatBehavior.Major, CurrentNugetVersion));
@@ -39,6 +40,7 @@ public class Dependency
 
     public string Name { get; }
     public string CurrentVersion { get; }
+    public string[] Conditions { get; }
     private Action<string> UpdateVersionMethod { get; }
     private VersionRange VersionRange { get; }
     private NuGetVersion CurrentNugetVersion { get; }

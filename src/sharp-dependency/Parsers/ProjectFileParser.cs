@@ -61,15 +61,27 @@ public class ProjectFileParser : IAsyncDisposable
             return result;
         }
 
+        var dependencies = new List<Dependency>();
+        var itemGroups = _xmlFile.XPathSelectElements("ItemGroup");
+        foreach (var itemGroup in itemGroups)
+        {
+            var condition = itemGroup.Attribute("Condition")?.Value;
+
+            foreach (var packageReference in itemGroup.Elements("PackageReference"))
+            {
+                var dependency = ParseDependency(packageReference, condition);
+                if (dependency is not null)
+                {
+                    dependencies.Add(dependency);
+                }
+            }
+        }
+        
         var targetFrameworks = ParseTargetFramework();
-        var packageReferences = _xmlFile.XPathSelectElements("ItemGroup/PackageReference").ToList();
-
-        var dependencies = packageReferences.Select(ParseDependency).Where(x => x is not null).ToList();
-
-        return new ProjectFile(dependencies!, targetFrameworks);
+        return new ProjectFile(dependencies, targetFrameworks);
     }
 
-    private Dependency? ParseDependency(XElement element)
+    private Dependency? ParseDependency(XElement element, string? itemGroupDependency)
     {
         var name = element.Attribute("Include")?.Value;
         if (string.IsNullOrEmpty(name))
@@ -115,8 +127,19 @@ public class ProjectFileParser : IAsyncDisposable
 
             return null;
         }
+        
+        var condition = element.Attribute("Condition")?.Value;
 
-        return new Dependency(name, currentVersion, updateVersionMethod);
+        if (itemGroupDependency is null && condition is null)
+        {
+            return new Dependency(name, currentVersion, Array.Empty<string>(), updateVersionMethod);
+        }
+            
+        var conditions = itemGroupDependency is not null
+            ? (condition is not null ? new[] { itemGroupDependency, condition } : new[] { itemGroupDependency })
+            : new[] { condition };
+            
+        return new Dependency(name, currentVersion, conditions!, updateVersionMethod);
     }
     
     public ValueTask DisposeAsync()
