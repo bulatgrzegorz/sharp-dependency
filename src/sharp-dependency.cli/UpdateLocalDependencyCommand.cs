@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using NuGet.Configuration;
-using SelectiveConditionEvaluator;
 using sharp_dependency.Parsers;
 using sharp_dependency.Repositories;
 using Spectre.Console;
@@ -50,7 +49,8 @@ internal sealed class UpdateLocalDependencyCommand : AsyncCommand<UpdateLocalDep
         }
 
         var nugetManager = new NugetPackageSourceMangerChain(packageSources.Select(x => new NugetPackageSourceManger(x)).ToArray());
-
+        var projectUpdater = new ProjectUpdater(nugetManager);
+        
         var projectPaths = GetProjectsPath(settings);
 
         foreach (var projectPath in projectPaths)
@@ -58,48 +58,12 @@ internal sealed class UpdateLocalDependencyCommand : AsyncCommand<UpdateLocalDep
             Console.WriteLine("{0}", projectPath);
             
             var projectContent = await File.ReadAllTextAsync(projectPath);
-            await using var projectFileParser = new ProjectFileParser(projectContent);
-            var projectFile = await projectFileParser.Parse();
-            foreach (var dependency in projectFile.Dependencies)
-            {
-                var targetFrameworks = new List<string>();
-                if (dependency.Conditions.Length > 0)
-                {
-                    foreach (var targetFramework in projectFile.TargetFrameworks)
-                    {
-                        var conditionParser = new SelectiveParser("TargetFramework", targetFramework);
-                        foreach (var dependencyCondition in dependency.Conditions)
-                        {
-                            //TODO: Cache evaluation of given condition with given target framework (there could be same condition for multiple packages in itemGroup.
-                            if (conditionParser.EvaluateSelective(dependencyCondition))
-                            {
-                                targetFrameworks.Add(targetFramework);
-                            }
-                        }
-                    }                
-                }
-                else
-                {
-                    targetFrameworks = projectFile.TargetFrameworks.ToList();
-                }
-
-                var allVersions = await nugetManager.GetPackageVersions(dependency.Name, targetFrameworks);
-                if (allVersions.Count == 0)
-                {
-                    continue;
-                }
-
-                if (dependency.UpdateVersionIfPossible(allVersions, out var newVersion))
-                {
-                    Console.WriteLine("     {0} {1} -> {2}", dependency.Name, dependency.CurrentVersion, newVersion);    
-                }
-            }
             
-            var updatedProjectContent = await projectFileParser.Generate();
-            
+            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectContent));
+
             if (!settings.DryRun)
             {
-                await File.WriteAllTextAsync(projectPath, updatedProjectContent);
+                await File.WriteAllTextAsync(projectPath, updatedProject.UpdatedContent);
             }
         }
 

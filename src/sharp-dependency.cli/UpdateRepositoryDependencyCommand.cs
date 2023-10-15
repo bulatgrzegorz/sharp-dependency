@@ -107,6 +107,8 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
 
         var repositoryPaths = (await bitbucketManager.GetRepositoryFilePaths()).ToList();
 
+        var projectUpdater = new ProjectUpdater(nugetManager);
+        
         var projectPaths = await GetProjectPaths(repositoryPaths, bitbucketManager);
 
         //TODO: We should check if anything was actually updated in project before
@@ -119,28 +121,11 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
             Console.WriteLine("{0}", projectPath);
 
             var projectContent = await bitbucketManager.GetFileContentRaw(projectPath);
-            await using var projectFileParser = new ProjectFileParser(projectContent);
-            var projectFile = await projectFileParser.Parse();
-            foreach (var dependency in projectFile.Dependencies)
-            {
-                var allVersions = await nugetManager.GetPackageVersions(dependency.Name, projectFile.TargetFrameworks);
-                if (allVersions.Count == 0)
-                {
-                    continue;
-                }
+            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectContent));
 
-                if (dependency.UpdateVersionIfPossible(allVersions, out var newVersion))
-                {
-                    updatedDependencies.Add((dependency.Name, dependency.CurrentVersion, newVersion.ToString()));
-                    Console.WriteLine("     {0} {1} -> {2}", dependency.Name, dependency.CurrentVersion, newVersion);    
-                }
-            }
-            
-            var updatedProjectContent = await projectFileParser.Generate();
-            
             if (!settings.DryRun)
             {
-                results.Add((projectPath, updatedProjectContent));
+                results.Add((projectPath, updatedProject.UpdatedContent));
             }
         }
 
