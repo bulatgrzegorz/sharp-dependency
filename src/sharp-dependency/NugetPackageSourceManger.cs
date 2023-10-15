@@ -86,12 +86,20 @@ public class NugetPackageSourceManger
         var parsedFrameworks = targetFrameworks.Select(x => ParsedTargetFrameworks.GetOrAdd(x, NuGetFramework.Parse)).ToList();
         foreach (var packageMetadata in packagesMetadata)
         {
+            //if package has no dependencies, we can simply add it
             if (!packageMetadata.DependencySets.Any())
             {
                 versions.Add(GetVersionFromPackageSearchMetadata(packageMetadata));
             }
+            
+            //if we do not have any target frameworks, we should not update anything (it could be filter out at condition evaluation step)
+            if(parsedFrameworks.Count == 0)
+            {
+                continue;
+            }
 
-            if (parsedFrameworks.Exists(x => FrameworkReducer.GetNearest(x, packageMetadata.DependencySets.Select(y => y.TargetFramework)) is not null))
+            //if we have multiple targets for some package, all must to be compatible
+            if (parsedFrameworks.TrueForAll(x => FrameworkReducer.GetNearest(x, packageMetadata.DependencySets.Select(y => y.TargetFramework)) is not null))
             {
                 versions.Add(GetVersionFromPackageSearchMetadata(packageMetadata));
             }

@@ -8,6 +8,6 @@ public class ProjectFile
         TargetFrameworks = targetFrameworks;
     }
 
-    public IReadOnlyCollection<Dependency> Dependencies { get; private set; }
-    public IReadOnlyCollection<string> TargetFrameworks { get; private set; }
+    public IReadOnlyCollection<Dependency> Dependencies { get; }
+    public IReadOnlyCollection<string> TargetFrameworks { get; }
 }
