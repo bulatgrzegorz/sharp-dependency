@@ -5,7 +5,6 @@ namespace sharp_dependency.Parsers;
 
 //TODO: Some configuration file, where it will be possible to configure which dependencies and how should be updated
 //TODO: Support directory.build.props files
-//TODO: Support target framework conditions in csproj item groups
 public class Dependency
 {
     public Dependency(string name, string currentVersion, string[] conditions, Action<string> updateVersionMethod)

@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency.UnitTests"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency.cli", "src\sharp-dependency.cli\sharp-dependency.cli.csproj", "{E87FF0F7-7348-4554-8F7B-0B54E5274537}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharp-dependency.IntegrationTests", "tests\sharp-dependency.IntegrationTests\sharp-dependency.IntegrationTests.csproj", "{B3F1C078-570A-4E32-B78F-2DC26AA5E90B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{E87FF0F7-7348-4554-8F7B-0B54E5274537}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E87FF0F7-7348-4554-8F7B-0B54E5274537}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E87FF0F7-7348-4554-8F7B-0B54E5274537}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B3F1C078-570A-4E32-B78F-2DC26AA5E90B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3F1C078-570A-4E32-B78F-2DC26AA5E90B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3F1C078-570A-4E32-B78F-2DC26AA5E90B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3F1C078-570A-4E32-B78F-2DC26AA5E90B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

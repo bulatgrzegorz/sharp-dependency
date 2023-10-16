@@ -6,11 +6,11 @@ namespace sharp_dependency;
 
 public class ProjectUpdater
 {
-    private readonly NugetPackageSourceMangerChain _nugetManger;
+    private readonly IPackageMangerService _packageManager;
 
-    public ProjectUpdater(NugetPackageSourceMangerChain nugetManger)
+    public ProjectUpdater(IPackageMangerService packageManager)
     {
-        _nugetManger = nugetManger;
+        _packageManager = packageManager;
     }
     
     public async Task<UpdateProjectResult> Update(UpdateProjectRequest request)
@@ -43,7 +43,7 @@ public class ProjectUpdater
     {
         if (dependency.Conditions.Length <= 0)
         {
-            return await _nugetManger.GetPackageVersions(dependency.Name, projectFile.TargetFrameworks);
+            return await _packageManager.GetPackageVersions(dependency.Name, projectFile.TargetFrameworks);
         }
         
         var targetFrameworks = new List<string>();
@@ -60,7 +60,7 @@ public class ProjectUpdater
             }
         }
 
-        return await _nugetManger.GetPackageVersions(dependency.Name, targetFrameworks);
+        return await _packageManager.GetPackageVersions(dependency.Name, targetFrameworks);
 
     }
 

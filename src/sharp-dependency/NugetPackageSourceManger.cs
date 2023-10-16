@@ -1,14 +1,18 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
+using Newtonsoft.Json;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Frameworks;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace sharp_dependency;
 
-public class NugetPackageSourceMangerChain
+//TODO: Should check if updated package has other packages references that should be taken into consideration
+public class NugetPackageSourceMangerChain : IPackageMangerService
 {
     private readonly List<NugetPackageSourceManger> _chain;
 
@@ -41,7 +45,8 @@ public class NugetPackageSourceMangerChain
 public class NugetPackageSourceManger
 {
     public enum ApiVersion { V3, V2 }
-    public SourceRepository _sourceRepository { get; }
+
+    private readonly SourceRepository _sourceRepository;
     private static readonly SourceCacheContext SourceCacheContext = new();
     private static readonly FrameworkReducer FrameworkReducer = new();
     private static readonly ConcurrentDictionary<string, NuGetFramework> ParsedTargetFrameworks = new();
@@ -86,22 +91,9 @@ public class NugetPackageSourceManger
         var parsedFrameworks = targetFrameworks.Select(x => ParsedTargetFrameworks.GetOrAdd(x, NuGetFramework.Parse)).ToList();
         foreach (var packageMetadata in packagesMetadata)
         {
-            //if package has no dependencies, we can simply add it
-            if (!packageMetadata.DependencySets.Any())
+            if (PackageSelector.GetVersionIfSelected(packageMetadata, parsedFrameworks, out var version))
             {
-                versions.Add(GetVersionFromPackageSearchMetadata(packageMetadata));
-            }
-            
-            //if we do not have any target frameworks, we should not update anything (it could be filter out at condition evaluation step)
-            if(parsedFrameworks.Count == 0)
-            {
-                continue;
-            }
-
-            //if we have multiple targets for some package, all must to be compatible
-            if (parsedFrameworks.TrueForAll(x => FrameworkReducer.GetNearest(x, packageMetadata.DependencySets.Select(y => y.TargetFramework)) is not null))
-            {
-                versions.Add(GetVersionFromPackageSearchMetadata(packageMetadata));
+                versions.Add(version);
             }
         }
 
@@ -109,8 +101,47 @@ public class NugetPackageSourceManger
     }
 
     private static string GetCacheKey(string packageId, bool includePrerelease, IEnumerable<string> targetFrameworks) => $"{packageId.ToLowerInvariant()}-{includePrerelease.ToString()}-{string.Join(";", targetFrameworks.Order())}";
+
+    private async Task<IEnumerable<IPackageSearchMetadata>> GetPackageMetadata(string packageId, bool includePrerelease)
+    {
+        var packageMetadataResource = await _sourceRepository.GetResourceAsync<PackageMetadataResource>();
+        return await packageMetadataResource.GetMetadataAsync(packageId, includePrerelease, false, SourceCacheContext, new NullLogger(), CancellationToken.None);
+    }
+}
+
+internal static class PackageSelector
+{
+    private static readonly FrameworkReducer FrameworkReducer = new();
     
-    private NuGetVersion GetVersionFromPackageSearchMetadata(IPackageSearchMetadata packageSearchMetadata) 
+    public static bool GetVersionIfSelected(IPackageSearchMetadata package, List<NuGetFramework> frameworks, [NotNullWhen(true)] out NuGetVersion? version)
+    {
+        var p = JsonConvert.SerializeObject(package);
+        //if package has no dependencies, we can simply add it
+        if (!package.DependencySets.Any())
+        {
+            version = package.GetVersion();
+            return true;
+        }
+            
+        //if we do not have any target frameworks, we should not update anything (it could be filter out at condition evaluation step)
+        if(frameworks.Count == 0)
+        {
+            version = default;
+            return false;
+        }
+
+        //if we have multiple targets for some package, all must to be compatible
+        if (frameworks.TrueForAll(x => FrameworkReducer.GetNearest(x, package.DependencySets.Select(y => y.TargetFramework)) is not null))
+        {
+            version = package.GetVersion();
+            return true;
+        }
+        
+        version = default;
+        return false;
+    }
+    
+    private static NuGetVersion GetVersion(this IPackageSearchMetadata packageSearchMetadata) 
         => packageSearchMetadata switch
         {
             PackageSearchMetadata value => value.Version,
@@ -118,10 +149,4 @@ public class NugetPackageSourceManger
             LocalPackageSearchMetadata value => value.Identity.Version,
             var version => version.Identity.Version
         };
-
-    private async Task<IEnumerable<IPackageSearchMetadata>> GetPackageMetadata(string packageId, bool includePrerelease)
-    {
-        var packageMetadataResource = await _sourceRepository.GetResourceAsync<PackageMetadataResource>();
-        return await packageMetadataResource.GetMetadataAsync(packageId, includePrerelease, false, SourceCacheContext, new NullLogger(), CancellationToken.None);
-    }
 }
