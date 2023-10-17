@@ -39,9 +39,9 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
     
     public BitbucketServerRepositoryManager(string baseUrl, string repositoryName, string projectName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(baseUrl);
-        ArgumentException.ThrowIfNullOrWhiteSpace(repositoryName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(projectName);
+        Guard.ThrowIfNullOrWhiteSpace(baseUrl);
+        Guard.ThrowIfNullOrWhiteSpace(repositoryName);
+        Guard.ThrowIfNullOrWhiteSpace(projectName);
         _repositoryName = repositoryName;
         _projectName = projectName;
         

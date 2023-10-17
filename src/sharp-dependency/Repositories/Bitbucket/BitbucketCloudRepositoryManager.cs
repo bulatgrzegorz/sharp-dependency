@@ -26,9 +26,9 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
 
     public BitbucketCloudRepositoryManager(string baseUrl, string workspace, string repository)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(baseUrl);
-        ArgumentException.ThrowIfNullOrWhiteSpace(workspace);
-        ArgumentException.ThrowIfNullOrWhiteSpace(repository);
+        Guard.ThrowIfNullOrWhiteSpace(baseUrl);
+        Guard.ThrowIfNullOrWhiteSpace(workspace);
+        Guard.ThrowIfNullOrWhiteSpace(repository);
         _repositoryName = repository;
         _workspace = workspace;
         _httpClient = CreateHttpClient(baseUrl, workspace, repository);

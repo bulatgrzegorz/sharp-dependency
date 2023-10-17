@@ -18,7 +18,7 @@ public class ProjectUpdater
     
     public async Task<UpdateProjectResult> Update(UpdateProjectRequest request)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.ProjectContent);
+        Guard.ThrowIfNullOrWhiteSpace(request.ProjectContent);
         
         await using var projectFileParser = new ProjectFileParser(request.ProjectContent);
         var projectFile = await projectFileParser.Parse();

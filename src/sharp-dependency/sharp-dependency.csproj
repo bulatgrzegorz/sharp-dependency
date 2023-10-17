@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <RootNamespace>sharp_dependency</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -12,7 +12,7 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="7.0.0" />
     <PackageReference Include="NuGet.Protocol" Version="6.7.0" />
     <PackageReference Include="NuGet.Versioning" Version="6.7.0" />
-    <PackageReference Include="SelectiveConditionEvaluator" Version="0.0.1" />
+    <PackageReference Include="SelectiveConditionEvaluator" Version="0.0.2" />
   </ItemGroup>
 
   <ItemGroup>
