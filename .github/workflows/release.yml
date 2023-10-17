@@ -23,7 +23,7 @@ jobs:
       - name: Package release --configuration Release
         id: package_release
         run: |
-          VERSION=`cat semver.txt`
+          VERSION=`cat version.txt`
           OUTPUT=${{ runner.temp }}/nupkgs
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tool_package_name=sharp-dependency-tool.$VERSION.nupkg" >> $GITHUB_OUTPUT
