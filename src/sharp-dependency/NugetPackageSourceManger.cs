@@ -1,13 +1,11 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using Newtonsoft.Json;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Frameworks;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
-using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace sharp_dependency;
 
@@ -88,6 +86,7 @@ public class NugetPackageSourceManger
     {
         var versions = new List<NuGetVersion>();
         var packagesMetadata = await GetPackageMetadata(packageId, includePrerelease);
+        
         var parsedFrameworks = targetFrameworks.Select(x => ParsedTargetFrameworks.GetOrAdd(x, NuGetFramework.Parse)).ToList();
         foreach (var packageMetadata in packagesMetadata)
         {
@@ -115,19 +114,24 @@ internal static class PackageSelector
     
     public static bool GetVersionIfSelected(IPackageSearchMetadata package, List<NuGetFramework> frameworks, [NotNullWhen(true)] out NuGetVersion? version)
     {
-        var p = JsonConvert.SerializeObject(package);
-        //if package has no dependencies, we can simply add it
-        if (!package.DependencySets.Any())
-        {
-            version = package.GetVersion();
-            return true;
-        }
-            
         //if we do not have any target frameworks, we should not update anything (it could be filter out at condition evaluation step)
         if(frameworks.Count == 0)
         {
             version = default;
             return false;
+        }
+        
+        if (!package.IsListed)
+        {
+            version = default;
+            return false;
+        }
+
+        //if package has no dependencies, we can simply add it
+        if (!package.DependencySets.Any())
+        {
+            version = package.GetVersion();
+            return true;
         }
 
         //if we have multiple targets for some package, all must to be compatible

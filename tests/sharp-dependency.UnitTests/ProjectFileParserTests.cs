@@ -138,7 +138,7 @@ public class ProjectFileParserTests
     }
 
     [Fact]
-    public async Task ProjectFileParser_ParseCondition()
+    public async Task ProjectFileParser_ParseItemGroupCondition()
     {
 	    var content = """
 <Project>
@@ -151,6 +151,47 @@ public class ProjectFileParserTests
 	    await using var parser = new ProjectFileParser(content);
 	    var projectFile = await parser.Parse();
 
-	    Assert.Empty(projectFile.TargetFrameworks);
+	    var lib = projectFile.Dependencies.Single(x => x.Name == "Lib1");
+	    Assert.Single(lib.Conditions);
+	    Assert.Equal(" '$(TargetFramework)' == 'netstandard1.6' ", lib.Conditions[0]);
+    }
+    
+    [Fact]
+    public async Task ProjectFileParser_ParsePackageCondition()
+    {
+	    var content = """
+<Project>
+  <ItemGroup>
+    <PackageReference Include="Lib1" Version="1.0.4" Condition=" '$(TargetFramework)' == 'netstandard1.6' "/>
+  </ItemGroup>
+</Project>
+""";
+	    
+	    await using var parser = new ProjectFileParser(content);
+	    var projectFile = await parser.Parse();
+
+	    var lib = projectFile.Dependencies.Single(x => x.Name == "Lib1");
+	    Assert.Single(lib.Conditions);
+	    Assert.Equal(" '$(TargetFramework)' == 'netstandard1.6' ", lib.Conditions[0]);
+    }
+    
+    [Fact]
+    public async Task ProjectFileParser_ParseMultipleConditions()
+    {
+	    var content = """
+<Project>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
+    <PackageReference Include="Lib1" Version="1.0.4" Condition=" '$(TargetFramework)' == 'netstandard1.6' "/>
+  </ItemGroup>
+</Project>
+""";
+	    
+	    await using var parser = new ProjectFileParser(content);
+	    var projectFile = await parser.Parse();
+
+	    var lib = projectFile.Dependencies.Single(x => x.Name == "Lib1");
+	    Assert.Equal(2, lib.Conditions.Length);
+	    Assert.Equal(" '$(TargetFramework)' == 'netstandard2.0' ", lib.Conditions[0]);
+	    Assert.Equal(" '$(TargetFramework)' == 'netstandard1.6' ", lib.Conditions[1]);
     }
 }
