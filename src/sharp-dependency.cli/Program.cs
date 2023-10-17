@@ -14,6 +14,7 @@ app.Configure(config =>
         x.AddCommand<PrintConfigurationCommand>("get").WithDescription("Print current configuration.");
         //TODO: Add command to remove bitbucket source by name
     });
+    //TODO: Parameters - include pre-release versions, way to limit updating only to specified packages (on specific version?)
     config.AddBranch("update", x =>
     {
         x.AddCommand<UpdateLocalDependencyCommand>("local").WithDescription("Update dependencies within local project.");

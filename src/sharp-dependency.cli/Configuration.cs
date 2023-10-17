@@ -13,7 +13,7 @@ public sealed record Configuration
     {
         return this with
         {
-            Bitbuckets = Bitbuckets.ToDictionary(x => x.Key, x => x.Value with { Credentials = x.Value.Credentials.WithoutSensitiveData() })
+            Bitbuckets = Bitbuckets.ToDictionary(x => x.Key, x => x.Value with { Credentials = x.Value.Credentials?.WithoutSensitiveData() })
         };
     }
 
