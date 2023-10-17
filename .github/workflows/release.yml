@@ -1,0 +1,40 @@
+# This workflow will build a .NET project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+
+name: Release
+
+on:
+  workflow_dispatch
+
+jobs:
+  release:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Test
+      run: dotnet test --configuration Release
+
+    - name: Package release --configuration Release
+      id: package_release
+      run: |
+        VERSION=`cat semver.txt`
+        OUTPUT=${{ runner.temp }}/nupkgs
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tool_package_name=sharp-dependency-tool.$VERSION.nupkg" >> $GITHUB_OUTPUT
+        echo "tool_package_filename=$OUTPUT/sharp-dependency-tool.$VERSION.nupkg" >> $GITHUB_OUTPUT
+        dotnet build --configuration Release
+        dotnet pack --configuration Release /p:Version=$VERSION /p:PackageOutputPath=$OUTPUT
+
+      - name: Publish package
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY" ${{ steps.package_release.outputs.tool_package_filename }}

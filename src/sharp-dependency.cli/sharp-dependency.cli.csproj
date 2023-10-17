@@ -6,6 +6,17 @@
         <RootNamespace>sharp_dependency.cli</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+
+        <PackageId>sharp-dependency-tool</PackageId>
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>sharp-dependency</ToolCommandName>
+        <PackageOutputPath>./nupkg</PackageOutputPath>
+
+        <Authors>Grzegorz Bułat</Authors>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageVersion>$(VersionSuffix)</PackageVersion>
+        <Description>Sharp dependency is a tool that make updating depedency in .NET projects easier.</Description>
+        <PackageProjectUrl>https://github.com/bulatgrzegorz/sharp-dependency</PackageProjectUrl>
     </PropertyGroup>
 
     <ItemGroup>
