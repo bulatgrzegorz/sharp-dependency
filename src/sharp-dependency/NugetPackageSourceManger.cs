@@ -46,7 +46,6 @@ public class NugetPackageSourceManger
 
     private readonly SourceRepository _sourceRepository;
     private static readonly SourceCacheContext SourceCacheContext = new();
-    private static readonly FrameworkReducer FrameworkReducer = new();
     private static readonly ConcurrentDictionary<string, NuGetFramework> ParsedTargetFrameworks = new();
     private readonly ConcurrentDictionary<string, Lazy<Task<IReadOnlyCollection<NuGetVersion>>>> _packageVersionCache = new();
 

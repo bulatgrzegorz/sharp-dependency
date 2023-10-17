@@ -1,4 +1,5 @@
-﻿using NuGet.Versioning;
+﻿using System.Collections.Concurrent;
+using NuGet.Versioning;
 using SelectiveConditionEvaluator;
 using sharp_dependency.Parsers;
 
@@ -7,6 +8,8 @@ namespace sharp_dependency;
 public class ProjectUpdater
 {
     private readonly IPackageMangerService _packageManager;
+    private readonly ConcurrentDictionary<string, Lazy<SelectiveParser>> _selectiveParsers = new();
+    private readonly ConcurrentDictionary<(string framework, string condition), bool> _conditionEvaluationCache = new();
 
     public ProjectUpdater(IPackageMangerService packageManager)
     {
@@ -49,11 +52,9 @@ public class ProjectUpdater
         var targetFrameworks = new List<string>();
         foreach (var targetFramework in projectFile.TargetFrameworks)
         {
-            var conditionParser = new SelectiveParser("TargetFramework", targetFramework);
             foreach (var dependencyCondition in dependency.Conditions)
             {
-                //TODO: Cache evaluation of given condition with given target framework (there could be same condition for multiple packages in itemGroup.
-                if (conditionParser.EvaluateSelective(dependencyCondition))
+                if (EvaluateCondition(targetFramework, dependencyCondition))
                 {
                     targetFrameworks.Add(targetFramework);
                 }
@@ -62,6 +63,19 @@ public class ProjectUpdater
 
         return await _packageManager.GetPackageVersions(dependency.Name, targetFrameworks);
 
+    }
+
+    private bool EvaluateCondition(string framework, string condition)
+    {
+        return _conditionEvaluationCache.GetOrAdd((framework, condition), key =>
+        {
+            var parser = _selectiveParsers
+                .GetOrAdd(key.framework, f => 
+                    new Lazy<SelectiveParser>(() => 
+                        new SelectiveParser("TargetFramework", f)));
+            return parser.Value.EvaluateSelective(key.condition);
+        });
+        
     }
 
     public readonly record struct UpdateProjectRequest(string ProjectContent);
