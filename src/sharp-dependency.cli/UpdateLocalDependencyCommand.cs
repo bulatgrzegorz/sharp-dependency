@@ -22,7 +22,7 @@ internal sealed class UpdateLocalDependencyCommand : AsyncCommand<UpdateLocalDep
         [CommandOption("--dry-run")]
         public bool DryRun { get; init; }
 
-        public bool IsPathSolutionFile => Path!.EndsWith(".sln", StringComparison.InvariantCultureIgnoreCase);
+        public bool? IsPathSolutionFile => Path?.EndsWith(".sln", StringComparison.InvariantCultureIgnoreCase);
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
@@ -72,23 +72,50 @@ internal sealed class UpdateLocalDependencyCommand : AsyncCommand<UpdateLocalDep
 
     private IReadOnlyCollection<string> GetProjectsPath(Settings settings)
     {
-        if (!settings.IsPathSolutionFile) return new[] { settings.Path! };
+        if (string.IsNullOrWhiteSpace(settings.Path))
+        {
+            return GetProjectFilesForCurrentDirectory();
+        }
+        
+        if (!settings.IsPathSolutionFile!.Value) return new[] { settings.Path! };
         
         var solutionFileParser = new SolutionFileParser();
         return solutionFileParser.GetProjectPaths(FileContent.CreateFromLocalPath(settings.Path!));
     }
 
-    public override ValidationResult Validate(CommandContext context, Settings settings)
+    private static IReadOnlyCollection<string> GetProjectFilesForCurrentDirectory()
     {
-        if (string.IsNullOrWhiteSpace(settings.Path))
+        var currentDirectory = Directory.GetCurrentDirectory();
+        var solutionFiles = Directory.GetFiles(currentDirectory, "*.sln");
+        if (solutionFiles.Length > 1)
         {
-            return ValidationResult.Error($"Setting {nameof(settings.Path)} must have a value.");
+            throw new ArgumentException(
+                $"There are multiple solution files ({string.Join(", ", solutionFiles)}) in current directory ({currentDirectory}). Please pass specific file (sln/csproj) that should be updated.");
         }
 
-        if (!settings.Path.EndsWith(".sln", StringComparison.InvariantCultureIgnoreCase) &&
-            !settings.Path.EndsWith(".csproj", StringComparison.InvariantCultureIgnoreCase))
+        if (solutionFiles.Length == 1)
         {
-            return ValidationResult.Error($"Setting {nameof(settings.Path)} must be either solution (sln) or project (csproj) file.");
+            var solutionFileParser = new SolutionFileParser();
+            return solutionFileParser.GetProjectPaths(FileContent.CreateFromLocalPath(solutionFiles[0]));
+        }
+
+        var projectFiles = Directory.GetFiles(currentDirectory, "*.csproj");
+        if (projectFiles.Length == 0)
+        {
+            Console.WriteLine($"Could not find any project file in current directory ({currentDirectory}). Please either change directory or pass specific file (sln/csproj) that should be updated.");
+        }
+        
+        return projectFiles;
+    }
+
+    public override ValidationResult Validate(CommandContext context, Settings settings)
+    {
+        if (!string.IsNullOrWhiteSpace(settings.Path))
+        {
+            if (!settings.Path.EndsWith(".sln", StringComparison.InvariantCultureIgnoreCase) && !settings.Path.EndsWith(".csproj", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return ValidationResult.Error($"Setting {nameof(settings.Path)} must be either solution (sln) or project (csproj) file.");
+            }
         }
         
         return ValidationResult.Success();
