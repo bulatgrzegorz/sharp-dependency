@@ -147,4 +147,31 @@ public class DirectoryBuildPropsLookupTests
         
         Assert.Equal(expectedDirectoryBuildPropsFilePath, directoryBuildProps);
     }
+    
+    [Fact]
+    public void DirectoryBuildPropsLookup_WillReturnNullForSingleProjectAtRoot_AbsolutePath_WithBasePath()
+    {
+        var paths = new[]
+        {
+            @"C:\dir\project.csproj"
+        };
+
+        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, @"C:\dir\project.csproj", @"C:\dir");
+        
+        Assert.Null(directoryBuildProps);
+    }
+    
+    [Fact]
+    public void DirectoryBuildPropsLookup_WillReturnNullForSingleProjectInNestedDir_AbsolutePath_WithBasePath()
+    {
+        var paths = new[]
+        {
+            @"C:\dir\project.sln",
+            @"C:\dir\proj\project.csproj"
+        };
+
+        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, @"C:\dir\proj\project.csproj", @"C:\dir");
+        
+        Assert.Null(directoryBuildProps);
+    }
 }

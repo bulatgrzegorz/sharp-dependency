@@ -2,25 +2,19 @@
 
 public static class DirectoryBuildPropsLookup
 {
+    private const string DirectoryBuildPropsUpper = "Directory.Build.props";
+    private const string DirectoryBuildPropsLower = "Directory.build.props";
+    
     public static string? GetDirectoryBuildPropsPath(IReadOnlyCollection<string> repositoryPaths, string projectPath, string basePath)
     {
-        var directoryBuildPropsFiles = new List<string>();
-        foreach (var repositoryPath in repositoryPaths)
-        {
-            if (!repositoryPath.EndsWith("Directory.Build.props") && !repositoryPath.EndsWith("Directory.build.props"))
-            {
-                continue;
-            }
-            
-            directoryBuildPropsFiles.Add(repositoryPath);
-        }
+        var directoryBuildPropsFiles = FilterDirectoryBuildPropsFiles(repositoryPaths).ToList();
         
         if (!directoryBuildPropsFiles.Any())
         {
             return null;
         }
 
-        string? levelToSearchOn = projectPath;
+        var levelToSearchOn = projectPath;
         do
         {
             levelToSearchOn = Path.GetDirectoryName(levelToSearchOn);
@@ -37,35 +31,26 @@ public static class DirectoryBuildPropsLookup
         while (levelToSearchOn != basePath);
 
 
-        var directoryBuildPropsUpper = directoryBuildPropsFiles.SingleOrDefault(x => x.Equals(Path.Combine(basePath, "Directory.Build.props")));
+        var directoryBuildPropsUpper = directoryBuildPropsFiles.SingleOrDefault(x => x.Equals(Path.Combine(basePath, DirectoryBuildPropsUpper)));
         if (directoryBuildPropsUpper is not null)
         {
             return directoryBuildPropsUpper;
         }
         
-        var directoryBuildPropsLower = directoryBuildPropsFiles.SingleOrDefault(x => x.Equals(Path.Combine(basePath, "Directory.build.props")));
+        var directoryBuildPropsLower = directoryBuildPropsFiles.SingleOrDefault(x => x.Equals(Path.Combine(basePath, DirectoryBuildPropsLower)));
         return directoryBuildPropsLower;
     }
     
     public static string? GetDirectoryBuildPropsPath(IReadOnlyCollection<string> repositoryPaths, string projectPath)
     {
-        var directoryBuildPropsFiles = new List<string>();
-        foreach (var repositoryPath in repositoryPaths)
-        {
-            if (!repositoryPath.EndsWith("Directory.Build.props") && !repositoryPath.EndsWith("Directory.build.props"))
-            {
-                continue;
-            }
+        var directoryBuildPropsFiles = FilterDirectoryBuildPropsFiles(repositoryPaths).ToList();
 
-            directoryBuildPropsFiles.Add(repositoryPath);
-        }
-        
         if (!directoryBuildPropsFiles.Any())
         {
             return null;
         }
 
-        string? levelToSearchOn = projectPath;
+        var levelToSearchOn = projectPath;
         do
         {
             levelToSearchOn = Path.GetDirectoryName(levelToSearchOn);
@@ -82,16 +67,29 @@ public static class DirectoryBuildPropsLookup
         while (levelToSearchOn is not null && levelToSearchOn.Contains(Path.DirectorySeparatorChar));
 
 
-        if (directoryBuildPropsFiles.Contains("Directory.Build.props"))
+        if (directoryBuildPropsFiles.Contains(DirectoryBuildPropsUpper))
         {
-            return "Directory.Build.props";
+            return DirectoryBuildPropsUpper;
         }
         
-        if (directoryBuildPropsFiles.Contains("Directory.build.props"))
+        if (directoryBuildPropsFiles.Contains(DirectoryBuildPropsLower))
         {
-            return "Directory.build.props";
+            return DirectoryBuildPropsLower;
         }
 
         return null;
+    }
+
+    private static IEnumerable<string> FilterDirectoryBuildPropsFiles(IReadOnlyCollection<string> repositoryPaths)
+    {
+        foreach (var repositoryPath in repositoryPaths)
+        {
+            if (!repositoryPath.EndsWith(DirectoryBuildPropsUpper) && !repositoryPath.EndsWith(DirectoryBuildPropsLower))
+            {
+                continue;
+            }
+
+            yield return repositoryPath;
+        }
     }
 }
