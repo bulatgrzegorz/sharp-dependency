@@ -51,15 +51,20 @@ internal sealed class UpdateLocalDependencyCommand : AsyncCommand<UpdateLocalDep
         var nugetManager = new NugetPackageSourceMangerChain(packageSources.Select(x => new NugetPackageSourceManger(x)).ToArray());
         var projectUpdater = new ProjectUpdater(nugetManager);
         
-        var projectPaths = GetProjectsPath(settings);
+        var (basePath, projectPaths, directoryBuildPropsPaths) = GetRepositoryFiles(settings);
 
         foreach (var projectPath in projectPaths)
         {
             Console.WriteLine("{0}", projectPath);
             
+            var directoryBuildPropsPath = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(directoryBuildPropsPaths, projectPath, basePath);
+            var directoryBuildPropsContent = directoryBuildPropsPath is not null ? await File.ReadAllTextAsync(projectPath) : null;
             var projectContent = await File.ReadAllTextAsync(projectPath);
-            
-            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectContent));
+            //if project was given, we should take base as its directory
+            //is solution was given we should take base as its directory
+            //if no path was given we should take current directory as base
+            // DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath();
+            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectContent, directoryBuildPropsContent));
 
             if (!settings.DryRun)
             {
@@ -69,20 +74,24 @@ internal sealed class UpdateLocalDependencyCommand : AsyncCommand<UpdateLocalDep
 
         return 0;
     }
-
-    private IReadOnlyCollection<string> GetProjectsPath(Settings settings)
+    
+    private (string basePath, IReadOnlyCollection<string> projectPaths, IReadOnlyCollection<string> directoryBuildProps) GetRepositoryFiles(Settings settings)
     {
         if (string.IsNullOrWhiteSpace(settings.Path))
         {
-            return GetProjectFilesForCurrentDirectory();
+            var projects = GetProjectFilesForCurrentDirectory();
+            return (Directory.GetCurrentDirectory(), projects, DirectoryBuildPropsLookup.SearchForDirectoryBuildPropsFiles(Directory.GetCurrentDirectory(), true));
         }
-        
-        if (!settings.IsPathSolutionFile!.Value) return new[] { settings.Path! };
+
+        var basePath = Path.GetDirectoryName(settings.Path)!;
+        if (!settings.IsPathSolutionFile!.Value) return (basePath, new[] { settings.Path! }, DirectoryBuildPropsLookup.SearchForDirectoryBuildPropsFiles(basePath, false));
         
         var solutionFileParser = new SolutionFileParser();
-        return solutionFileParser.GetProjectPaths(FileContent.CreateFromLocalPath(settings.Path!));
+        var pathProjects = solutionFileParser.GetProjectPaths(FileContent.CreateFromLocalPath(settings.Path!));
+        
+        return (basePath, pathProjects, DirectoryBuildPropsLookup.SearchForDirectoryBuildPropsFiles(basePath, true));
     }
-
+    
     private static IReadOnlyCollection<string> GetProjectFilesForCurrentDirectory()
     {
         var currentDirectory = Directory.GetCurrentDirectory();

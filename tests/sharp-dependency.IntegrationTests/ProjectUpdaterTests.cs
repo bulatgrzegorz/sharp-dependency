@@ -53,7 +53,7 @@ public class ProjectUpdaterTests
         var projectUpdater = new ProjectUpdater(packageManager.Object);
 
         var projectContent = GetProjectContent(projectName);
-        var updateProjectResult = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectContent));
+        var updateProjectResult = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectContent, default));
 
         var efCore = await GetProjectDependency(updateProjectResult.UpdatedContent, package);
 

@@ -78,6 +78,6 @@ public class ProjectUpdater
         
     }
 
-    public readonly record struct UpdateProjectRequest(string ProjectContent);
+    public readonly record struct UpdateProjectRequest(string ProjectContent, string? DirectoryBuildProps);
     public readonly record struct UpdateProjectResult(string UpdatedContent);
 }

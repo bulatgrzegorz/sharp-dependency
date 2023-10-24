@@ -1,14 +1,22 @@
 ﻿namespace sharp_dependency;
 
+//TODO: Right now we do not support nested directory build props files. First one will be chosen (in terms of directory distance)
 public static class DirectoryBuildPropsLookup
 {
     private const string DirectoryBuildPropsUpper = "Directory.Build.props";
     private const string DirectoryBuildPropsLower = "Directory.build.props";
-    
-    public static string? GetDirectoryBuildPropsPath(IReadOnlyCollection<string> repositoryPaths, string projectPath, string basePath)
+
+    public static IReadOnlyCollection<string> SearchForDirectoryBuildPropsFiles(string path, bool recursive)
     {
-        var directoryBuildPropsFiles = FilterDirectoryBuildPropsFiles(repositoryPaths).ToList();
+        var searchOptions = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+        var upperBuildProps = Directory.GetFiles(path, DirectoryBuildPropsUpper, searchOptions);
+        var lowerBuildProps = Directory.GetFiles(path, DirectoryBuildPropsLower, searchOptions);
         
+        return upperBuildProps.Concat(lowerBuildProps).ToList();
+    }
+
+    public static string? GetDirectoryBuildPropsPath(IReadOnlyCollection<string> directoryBuildPropsFiles, string projectPath, string basePath)
+    {
         if (!directoryBuildPropsFiles.Any())
         {
             return null;
