@@ -83,19 +83,28 @@ public class DirectoryBuildPropsLookupTests
     {
         var paths = new[]
         {
-            @"C:\dir\project.sln",
             @"C:\dir\Directory.Build.props",
             @"C:\dir\src\Directory.Build.props",
-            @"C:\dir\src\proj\project.csproj",
             @"C:\dir\src\proj\Directory.Build.props",
-            @"C:\dir\tool\tool.csproj",
             @"C:\dir\tests\Directory.Build.props",
-            @"C:\dir\tests\testProj\testProj.csproj"
         };
 
         var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, projectPath, @"C:\dir");
         
         Assert.Equal(expectedDirectoryBuildPropsFilePath, directoryBuildProps);
+    }
+    
+    [Fact]
+    public void DirectoryBuildPropsLookup_WillReturnPropsFile_ForProjectOnBaseLevel()
+    {
+        var paths = new[]
+        {
+            @"C:\dir\Directory.Build.props",
+        };
+
+        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, @"C:\dir\project.csproj", @"C:\dir");
+        
+        Assert.Equal(paths[0], directoryBuildProps);
     }
     
     [Fact]
@@ -133,14 +142,10 @@ public class DirectoryBuildPropsLookupTests
     {
         var paths = new[]
         {
-            "/home/usr/repo/project.sln",
             "/home/usr/repo/Directory.Build.props",
             "/home/usr/repo/src/Directory.Build.props",
-            "/home/usr/repo/src/proj/project.csproj",
             "/home/usr/repo/src/proj/Directory.Build.props",
-            "/home/usr/repo/tool/tool.csproj",
             "/home/usr/repo/tests/Directory.Build.props",
-            "/home/usr/repo/tests/testProj/testProj.csproj"
         };
 
         var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, projectPath, "/home/usr/repo");
@@ -149,28 +154,9 @@ public class DirectoryBuildPropsLookupTests
     }
     
     [Fact]
-    public void DirectoryBuildPropsLookup_WillReturnNullForSingleProjectAtRoot_AbsolutePath_WithBasePath()
+    public void DirectoryBuildPropsLookup_WillReturnNullForEmptyDirectoryBuildPropsList()
     {
-        var paths = new[]
-        {
-            @"C:\dir\project.csproj"
-        };
-
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, @"C:\dir\project.csproj", @"C:\dir");
-        
-        Assert.Null(directoryBuildProps);
-    }
-    
-    [Fact]
-    public void DirectoryBuildPropsLookup_WillReturnNullForSingleProjectInNestedDir_AbsolutePath_WithBasePath()
-    {
-        var paths = new[]
-        {
-            @"C:\dir\project.sln",
-            @"C:\dir\proj\project.csproj"
-        };
-
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, @"C:\dir\proj\project.csproj", @"C:\dir");
+        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(ArraySegment<string>.Empty, @"C:\dir\project.csproj", @"C:\dir");
         
         Assert.Null(directoryBuildProps);
     }

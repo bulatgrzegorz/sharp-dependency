@@ -17,7 +17,10 @@ public static class DirectoryBuildPropsLookup
 
     public static string? GetDirectoryBuildPropsPath(IReadOnlyCollection<string> directoryBuildPropsFiles, string projectPath, string basePath)
     {
-        if (!directoryBuildPropsFiles.Any())
+        //This list should contains already only directory build props files, but we will call filter for double check
+        var filteredDirectoryBuildPropsFiles = FilterDirectoryBuildPropsFiles(directoryBuildPropsFiles).ToList();
+        
+        if (!filteredDirectoryBuildPropsFiles.Any())
         {
             return null;
         }
@@ -26,7 +29,7 @@ public static class DirectoryBuildPropsLookup
         do
         {
             levelToSearchOn = Path.GetDirectoryName(levelToSearchOn);
-            foreach (var path in directoryBuildPropsFiles)
+            foreach (var path in filteredDirectoryBuildPropsFiles)
             {
                 if (Path.GetDirectoryName(path) != levelToSearchOn)
                 {
@@ -39,13 +42,13 @@ public static class DirectoryBuildPropsLookup
         while (levelToSearchOn != basePath);
 
 
-        var directoryBuildPropsUpper = directoryBuildPropsFiles.SingleOrDefault(x => x.Equals(Path.Combine(basePath, DirectoryBuildPropsUpper)));
+        var directoryBuildPropsUpper = filteredDirectoryBuildPropsFiles.SingleOrDefault(x => x.Equals(Path.Combine(basePath, DirectoryBuildPropsUpper)));
         if (directoryBuildPropsUpper is not null)
         {
             return directoryBuildPropsUpper;
         }
         
-        var directoryBuildPropsLower = directoryBuildPropsFiles.SingleOrDefault(x => x.Equals(Path.Combine(basePath, DirectoryBuildPropsLower)));
+        var directoryBuildPropsLower = filteredDirectoryBuildPropsFiles.SingleOrDefault(x => x.Equals(Path.Combine(basePath, DirectoryBuildPropsLower)));
         return directoryBuildPropsLower;
     }
     
