@@ -13,27 +13,27 @@ public class ConfigureBitbucketCommand : AsyncCommand<ConfigureBitbucketCommand.
     {
         [Description("Base URL address to bitbucket api.")]
         [CommandArgument(0, "[address]")]
-        public string ApiAddress { get; init; }
-        
+        public string ApiAddress { get; init; } = null!;
+
         [Description("Name of repository source.")]
         [CommandOption("-n|--name")]
-        public string Name { get; set; }
-        
+        public string Name { get; set; } = null!;
+
         [Description("Type of bitbucket (Cloud and Server (onpremise))")]
         [CommandOption("-t|--type")]
         public BitbucketType Type { get; set; }
         
         [Description("User name used for basic authentication.")]
         [CommandOption("-u|--username")]
-        public string UserName { get; set; }
+        public string UserName { get; set; } = null!;
 
         [Description("Pasword used for basic authentication.")]
         [CommandOption("-p|--password")]
-        public string AppPassword { get; set; }
+        public string AppPassword { get; set; } = null!;
 
         [Description("Token used for bearer authentication.")]
         [CommandOption("--token")]
-        public string Token { get; set; }
+        public string Token { get; set; } = null!;
     }
     
     public enum BitbucketType

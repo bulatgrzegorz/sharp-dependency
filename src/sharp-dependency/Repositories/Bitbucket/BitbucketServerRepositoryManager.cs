@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
@@ -223,48 +224,54 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         throw new Exception($"{messagePrefix} on repository {_repositoryName} in {_projectName}. Sharp-dependency can not proceed.{renderedInnerMessage}");
     }
 
+    // ReSharper disable ClassNeverInstantiated.Local
     private class GetRepositoryResponse
     {
-        public string Slug { get; set; }
-        public string Name { get; set; }
-        public ProjectRef Project { get; set; }
+        public string Slug { get; set; } = null!;
+        public string Name { get; set; } = null!;
+        public ProjectRef Project { get; set; } = null!;
+        
         public class ProjectRef
         {
-            public string Key { get; set; }
+            public string Key { get; set; } = null!;
         }
     }
 
     private class CreateCommitResponse
     {
-        public string Id { get; set; }
+        public string Id { get; set; } = null!;
     }
     
     private class GetBranchesResponse
     {
-        public IEnumerable<Branch> Values { get; set; }
+        public IEnumerable<Branch> Values { get; set; } = null!;
     }
 
+    // ReSharper disable once ClassNeverInstantiated.Local
+    // ReSharper disable once MemberCanBePrivate.Local
+    // ReSharper disable once UnusedAutoPropertyAccessor.Local
     private class Branch
     {
-        public string Id { get; set; }
-        public string Type { get; set; }
+        public string Id { get; set; } = null!;
+        public string Type { get; set; } = null!;
         public bool IsDefault { get; set; }
-        public string LatestCommit { get; set; }
+        public string LatestCommit { get; set; } = null!;
         public bool IsBranch => Type.Equals("BRANCH", StringComparison.InvariantCultureIgnoreCase);
     }
     
     private class GetRepositoryFilePathsResponse
     {
-        public IEnumerable<string> Values { get; set; }
+        public IEnumerable<string> Values { get; set; } = null!;
     }
     
     private class GetFileContentResponse
     {
-        public IEnumerable<GetFileContentResponseLine> Lines { get; set; }
+        public IEnumerable<GetFileContentResponseLine> Lines { get; set; } = null!;
 
+        // ReSharper disable once ClassNeverInstantiated.Local
         internal class GetFileContentResponseLine
         {
-            public string Text { get; set; }
+            public string Text { get; set; } = null!;
         }
     }
 

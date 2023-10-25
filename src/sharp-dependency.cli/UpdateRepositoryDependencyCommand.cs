@@ -96,12 +96,12 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
         var repository = settings.Repository;
         IRepositoryManger bitbucketManager = (bitbucket, bitbucket.Credentials) switch
         {
-            (CloudBitbucket, null) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace, repository),
-            (ServerBitbucket, null) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project),
-            (CloudBitbucket, AppPasswordCredentials c) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace, repository, (c.UserName, c.AppPassword)),
-            (CloudBitbucket, AccessTokenCredentials c) => new BitbucketCloudRepositoryManager(bitbucketAddress, workspace, repository, c.Token),
-            (ServerBitbucket, AppPasswordCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project, (c.UserName, c.AppPassword)),
-            (ServerBitbucket, AccessTokenCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project, c.Token),
+            (CloudBitbucket, null) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace!, repository),
+            (ServerBitbucket, null) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!),
+            (CloudBitbucket, AppPasswordCredentials c) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace!, repository, (c.UserName, c.AppPassword)),
+            (CloudBitbucket, AccessTokenCredentials c) => new BitbucketCloudRepositoryManager(bitbucketAddress, workspace!, repository, c.Token),
+            (ServerBitbucket, AppPasswordCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!, (c.UserName, c.AppPassword)),
+            (ServerBitbucket, AccessTokenCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!, c.Token),
             _ => throw new ArgumentOutOfRangeException()
         };
 

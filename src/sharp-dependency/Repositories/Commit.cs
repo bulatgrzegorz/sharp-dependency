@@ -2,5 +2,4 @@
 
 public class Commit
 {
-    public string Id { get; set; }
 }

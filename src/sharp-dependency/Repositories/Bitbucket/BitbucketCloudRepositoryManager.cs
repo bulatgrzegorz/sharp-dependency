@@ -216,29 +216,29 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
     // ReSharper disable once ClassNeverInstantiated.Local
     internal class GetSrcResponse
     {
-        public ICollection<Value> Values { get; set; }
+        public ICollection<Value> Values { get; set; } = null!;
 
         // ReSharper disable once ClassNeverInstantiated.Local
         public class Value
         {
-            public string Path { get; set; }
-            
-            public string Type { get; set; }
+            public string Path { get; set; } = null!;
+
+            public string Type { get; set; } = null!;
 
             public bool IsCommitFile => Type.Equals("commit_file", StringComparison.InvariantCultureIgnoreCase); 
          
-            public Link Links { get; set; }
-            
+            public Link Links { get; set; } = null!;
+
             public class Link
             {
-                public Self Self { get; set; }
+                public Self Self { get; set; } = null!;
             }
         }
         
         // ReSharper disable once ClassNeverInstantiated.Local
         public class Self
         {
-            public string Href { get; set; }
+            public string Href { get; set; } = null!;
         }
     }
 
