@@ -47,6 +47,13 @@
       <Content Include="testProjects\simple_newest.csproj">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
+      <Content Include="testProjects\simple_withoutTargetFramework.csproj">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="testProjects\Directory.Build.props" />
+      <Content Include="testProjects\Net8TargetFramework.Directory.Build.props">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
     <ItemGroup>

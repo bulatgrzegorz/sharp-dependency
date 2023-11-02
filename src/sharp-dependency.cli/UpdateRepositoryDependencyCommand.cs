@@ -123,9 +123,9 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
             var directoryBuildPropsFile = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(repositoryPaths, projectPath);
             var projectContent = await bitbucketManager.GetFileContentRaw(projectPath);
             var directoryBuildPropsContent = directoryBuildPropsFile is not null ? await bitbucketManager.GetFileContentRaw(directoryBuildPropsFile) : null;
-            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectContent, directoryBuildPropsContent));
+            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent));
 
-            if (!settings.DryRun)
+            if (!settings.DryRun && updatedProject.UpdatedContent is not null)
             {
                 results.Add((projectPath, updatedProject.UpdatedContent));
             }

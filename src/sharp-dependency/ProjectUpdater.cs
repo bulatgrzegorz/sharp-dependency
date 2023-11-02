@@ -19,13 +19,27 @@ public class ProjectUpdater
     public async Task<UpdateProjectResult> Update(UpdateProjectRequest request)
     {
         Guard.ThrowIfNullOrWhiteSpace(request.ProjectContent);
-        
+
+        await using var directoryBuildPropsParser = request.DirectoryBuildProps is not null ? new ProjectFileParser(request.DirectoryBuildProps) : null;
+        var directoryBuildPropsFile = await (directoryBuildPropsParser?.Parse() ?? Task.FromResult((ProjectFile?)default)!);
         await using var projectFileParser = new ProjectFileParser(request.ProjectContent);
         var projectFile = await projectFileParser.Parse();
         
+        var projectTargetFrameworks = projectFile.TargetFrameworks is { Count: > 0 }
+            ? projectFile.TargetFrameworks
+            : directoryBuildPropsFile?.TargetFrameworks;
+
+        if (projectTargetFrameworks is null or { Count: 0 })
+        {
+            Console.WriteLine("Could not determine target framework for project: {0}", request.ProjectPath);
+            return new UpdateProjectResult();
+        }
+        
         foreach (var dependency in projectFile.Dependencies)
         {
-            var allVersions = await GetPackageVersions(projectFile, dependency);
+            //TODO: We should be also consider directoryBuildProps dependencies here as well. Project file can not determine dependency version for example.
+            
+            var allVersions = await GetPackageVersions(projectTargetFrameworks, dependency);
             if (allVersions.Count == 0)
             {
                 continue;
@@ -42,15 +56,15 @@ public class ProjectUpdater
         return new UpdateProjectResult(updatedProjectContent);
     }
 
-    private async Task<IReadOnlyCollection<NuGetVersion>> GetPackageVersions(ProjectFile projectFile, Dependency dependency)
+    private async Task<IReadOnlyCollection<NuGetVersion>> GetPackageVersions(IReadOnlyCollection<string> projectTargetFrameworks, Dependency dependency)
     {
         if (dependency.Conditions.Length <= 0)
         {
-            return await _packageManager.GetPackageVersions(dependency.Name, projectFile.TargetFrameworks);
+            return await _packageManager.GetPackageVersions(dependency.Name, projectTargetFrameworks);
         }
         
         var targetFrameworks = new List<string>();
-        foreach (var targetFramework in projectFile.TargetFrameworks)
+        foreach (var targetFramework in projectTargetFrameworks)
         {
             foreach (var dependencyCondition in dependency.Conditions)
             {
@@ -78,6 +92,6 @@ public class ProjectUpdater
         
     }
 
-    public readonly record struct UpdateProjectRequest(string ProjectContent, string? DirectoryBuildProps);
-    public readonly record struct UpdateProjectResult(string UpdatedContent);
+    public readonly record struct UpdateProjectRequest(string ProjectPath, string ProjectContent, string? DirectoryBuildProps);
+    public readonly record struct UpdateProjectResult(string? UpdatedContent);
 }

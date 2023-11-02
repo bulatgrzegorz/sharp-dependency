@@ -44,6 +44,29 @@ public class ProjectUpdaterTests
         await VerifyProjectPackageUpdate("Microsoft.EntityFrameworkCore", "simpleWithFalsePackageCondition.csproj", "7.0.11");
     }
     
+    [Fact]
+    public async Task ProjectUpdater_WillUpdateEfCore_WhenNewVersionAvailable_AndTargetFrameworkOnDirectoryBuildPropsOnly()
+    {
+        await VerifyProjectPackageUpdate("Microsoft.EntityFrameworkCore", "simple_withoutTargetFramework.csproj", "Net8TargetFramework.Directory.Build.props", "7.0.12");
+    }
+    
+    private async Task VerifyProjectPackageUpdate(string package, string projectName, string directoryBuildProps, string expectedVersion)
+    {
+        var packageManager = new Mock<IPackageMangerService>();
+
+        MockPackageManagerWithTestFile(packageManager, package);
+
+        var projectUpdater = new ProjectUpdater(packageManager.Object);
+
+        var projectContent = GetProjectContent(projectName);
+        var directoryBuildPropsContent = GetProjectContent(directoryBuildProps);
+        var updateProjectResult = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectName, projectContent, directoryBuildPropsContent));
+
+        var efCore = await GetProjectDependency(updateProjectResult.UpdatedContent!, package);
+
+        Assert.Equal(expectedVersion, efCore.CurrentVersion);
+    }
+    
     private async Task VerifyProjectPackageUpdate(string package, string projectName, string expectedVersion)
     {
         var packageManager = new Mock<IPackageMangerService>();
@@ -53,9 +76,9 @@ public class ProjectUpdaterTests
         var projectUpdater = new ProjectUpdater(packageManager.Object);
 
         var projectContent = GetProjectContent(projectName);
-        var updateProjectResult = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectContent, default));
+        var updateProjectResult = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectName, projectContent, default));
 
-        var efCore = await GetProjectDependency(updateProjectResult.UpdatedContent, package);
+        var efCore = await GetProjectDependency(updateProjectResult.UpdatedContent!, package);
 
         Assert.Equal(expectedVersion, efCore.CurrentVersion);
     }

@@ -64,9 +64,9 @@ internal sealed class UpdateLocalDependencyCommand : AsyncCommand<UpdateLocalDep
             //is solution was given we should take base as its directory
             //if no path was given we should take current directory as base
             // DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath();
-            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectContent, directoryBuildPropsContent));
+            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent));
 
-            if (!settings.DryRun)
+            if (!settings.DryRun && updatedProject.UpdatedContent is not null)
             {
                 await File.WriteAllTextAsync(projectPath, updatedProject.UpdatedContent);
             }

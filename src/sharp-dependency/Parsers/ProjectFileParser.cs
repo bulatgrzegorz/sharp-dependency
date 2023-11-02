@@ -128,7 +128,7 @@ public class ProjectFileParser : IAsyncDisposable
 
             return null;
         }
-        
+
         var condition = element.Attribute("Condition")?.Value;
 
         if (itemGroupDependency is null && condition is null)
