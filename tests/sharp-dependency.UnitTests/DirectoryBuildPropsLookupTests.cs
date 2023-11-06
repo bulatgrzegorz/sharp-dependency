@@ -11,19 +11,19 @@ public class DirectoryBuildPropsLookupTests
     {
         var paths = new[]
         {
-            NormalizePath("project.sln"),
-            NormalizePath("Directory.Build.props"),
-            NormalizePath("src/Directory.Build.props"),
-            NormalizePath("src/proj/project.csproj"),
-            NormalizePath("src/proj/Directory.Build.props"),
-            NormalizePath("tool/tool.csproj"),
-            NormalizePath("tests/Directory.Build.props"),
-            NormalizePath("tests/testProj/testProj.csproj")
+            "project.sln",
+            "Directory.Build.props",
+            "src/Directory.Build.props",
+            "src/proj/project.csproj",
+            "src/proj/Directory.Build.props",
+            "tool/tool.csproj",
+            "tests/Directory.Build.props",
+            "tests/testProj/testProj.csproj",
         };
         
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, NormalizePath(projectPath));
+        var directoryBuildProps = GetDirectoryBuildPropsPath(paths, NormalizePath(projectPath));
         
-        Assert.Equal(NormalizePath(expectedDirectoryBuildPropsFilePath), directoryBuildProps);
+        AssertPathAreEqual(expectedDirectoryBuildPropsFilePath, directoryBuildProps!);
     }
     
     [Theory]
@@ -34,19 +34,19 @@ public class DirectoryBuildPropsLookupTests
     {
         var paths = new[]
         {
-            NormalizePath(@"project.sln"),
-            NormalizePath(@"Directory.Build.props"),
-            NormalizePath(@"src\Directory.Build.props"),
-            NormalizePath(@"src\proj\project.csproj"),
-            NormalizePath(@"src\proj\Directory.Build.props"),
-            NormalizePath(@"tool\tool.csproj"),
-            NormalizePath(@"tests\Directory.Build.props"),
-            NormalizePath(@"tests\testProj\testProj.csproj")
+            @"project.sln",
+            @"Directory.Build.props",
+            @"src\Directory.Build.props",
+            @"src\proj\project.csproj",
+            @"src\proj\Directory.Build.props",
+            @"tool\tool.csproj",
+            @"tests\Directory.Build.props",
+            @"tests\testProj\testProj.csproj",
         };
 
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, NormalizePath(projectPath));
+        var directoryBuildProps = GetDirectoryBuildPropsPath(paths, NormalizePath(projectPath));
         
-        Assert.Equal(NormalizePath(expectedDirectoryBuildPropsFilePath), directoryBuildProps);
+        AssertPathAreEqual(expectedDirectoryBuildPropsFilePath, directoryBuildProps!);
     }
     
     [Fact]
@@ -57,7 +57,7 @@ public class DirectoryBuildPropsLookupTests
             "project.csproj"
         };
 
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, "project.csproj");
+        var directoryBuildProps = GetDirectoryBuildPropsPath(paths, "project.csproj");
         
         Assert.Null(directoryBuildProps);
     }
@@ -67,11 +67,11 @@ public class DirectoryBuildPropsLookupTests
     {
         var paths = new[]
         {
-            NormalizePath("project.sln"),
-            NormalizePath("proj/project.csproj")
+            "project.sln",
+            "proj/project.csproj",
         };
 
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, NormalizePath("proj/project.csproj"));
+        var directoryBuildProps = GetDirectoryBuildPropsPath(paths, NormalizePath("proj/project.csproj"));
         
         Assert.Null(directoryBuildProps);
     }
@@ -84,15 +84,15 @@ public class DirectoryBuildPropsLookupTests
     {
         var paths = new[]
         {
-            NormalizePath(@"C:\dir\Directory.Build.props"),
-            NormalizePath(@"C:\dir\src\Directory.Build.props"),
-            NormalizePath(@"C:\dir\src\proj\Directory.Build.props"),
-            NormalizePath(@"C:\dir\tests\Directory.Build.props"),
+            @"C:\dir\Directory.Build.props",
+            @"C:\dir\src\Directory.Build.props",
+            @"C:\dir\src\proj\Directory.Build.props",
+            @"C:\dir\tests\Directory.Build.props",
         };
 
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, projectPath, NormalizePath(@"C:\dir"));
+        var directoryBuildProps = GetDirectoryBuildPropsPath(paths, projectPath, NormalizePath(@"C:\dir"));
         
-        Assert.Equal(NormalizePath(expectedDirectoryBuildPropsFilePath), directoryBuildProps);
+        AssertPathAreEqual(expectedDirectoryBuildPropsFilePath, directoryBuildProps!);
     }
     
     [Fact]
@@ -100,12 +100,12 @@ public class DirectoryBuildPropsLookupTests
     {
         var paths = new[]
         {
-            NormalizePath(@"C:\dir\Directory.Build.props"),
+            @"C:\dir\Directory.Build.props",
         };
 
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, @"C:\dir\project.csproj", NormalizePath(@"C:\dir"));
+        var directoryBuildProps = GetDirectoryBuildPropsPath(paths, @"C:\dir\project.csproj", NormalizePath(@"C:\dir"));
         
-        Assert.Equal(paths[0], directoryBuildProps);
+        AssertPathAreEqual(paths[0], directoryBuildProps!);
     }
     
     [Fact]
@@ -113,10 +113,10 @@ public class DirectoryBuildPropsLookupTests
     {
         var paths = new[]
         {
-            NormalizePath(@"C:\dir\project.csproj")
+            @"C:\dir\project.csproj"
         };
 
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, NormalizePath(@"C:\dir\project.csproj"));
+        var directoryBuildProps = GetDirectoryBuildPropsPath(paths, NormalizePath(@"C:\dir\project.csproj"));
         
         Assert.Null(directoryBuildProps);
     }
@@ -126,11 +126,11 @@ public class DirectoryBuildPropsLookupTests
     {
         var paths = new[]
         {
-            NormalizePath(@"C:\dir\project.sln"),
-            NormalizePath(@"C:\dir\proj\project.csproj")
+            @"C:\dir\project.sln",
+            @"C:\dir\proj\project.csproj",
         };
 
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, NormalizePath(@"C:\dir\proj\project.csproj"));
+        var directoryBuildProps = GetDirectoryBuildPropsPath(paths, NormalizePath(@"C:\dir\proj\project.csproj"));
         
         Assert.Null(directoryBuildProps);
     }
@@ -143,23 +143,41 @@ public class DirectoryBuildPropsLookupTests
     {
         var paths = new[]
         {
-            NormalizePath("/home/usr/repo/Directory.Build.props"),
-            NormalizePath("/home/usr/repo/src/Directory.Build.props"),
-            NormalizePath("/home/usr/repo/src/proj/Directory.Build.props"),
-            NormalizePath("/home/usr/repo/tests/Directory.Build.props"),
+            "/home/usr/repo/Directory.Build.props",
+            "/home/usr/repo/src/Directory.Build.props",
+            "/home/usr/repo/src/proj/Directory.Build.props",
+            "/home/usr/repo/tests/Directory.Build.props",
         };
 
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(paths, projectPath, NormalizePath("/home/usr/repo"));
+        var directoryBuildProps = GetDirectoryBuildPropsPath(paths, projectPath, NormalizePath("/home/usr/repo"));
         
-        Assert.Equal(NormalizePath(expectedDirectoryBuildPropsFilePath), directoryBuildProps);
+        AssertPathAreEqual(expectedDirectoryBuildPropsFilePath, directoryBuildProps!);
     }
     
     [Fact]
     public void DirectoryBuildPropsLookup_WillReturnNullForEmptyDirectoryBuildPropsList()
     {
-        var directoryBuildProps = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(ArraySegment<string>.Empty, @"C:\dir\project.csproj", NormalizePath(@"C:\dir"));
+        var directoryBuildProps = GetDirectoryBuildPropsPath(ArraySegment<string>.Empty, @"C:\dir\project.csproj", NormalizePath(@"C:\dir"));
         
         Assert.Null(directoryBuildProps);
+    }
+
+    private void AssertPathAreEqual(string path1, string path2)
+    {
+        Assert.Equal(NormalizePath(path1), NormalizePath(path2));
+    }
+    
+    private static string? GetDirectoryBuildPropsPath(IReadOnlyCollection<string> repositoryPaths, string projectPath)
+    {
+        return DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(repositoryPaths.Select(NormalizePath).ToList(),
+            NormalizePath(projectPath));
+    }
+    
+    private static string? GetDirectoryBuildPropsPath(IReadOnlyCollection<string> directoryBuildPropsFiles, string projectPath, string basePath)
+    {
+        return DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(
+            directoryBuildPropsFiles.Select(NormalizePath).ToList(), NormalizePath(projectPath),
+            NormalizePath(basePath));
     }
     
     internal static class PathExtensions
