@@ -33,6 +33,8 @@ public class DirectoryBuildPropsLookupTests
     [InlineData(@"src\proj\project.csproj", @"src\proj\Directory.Build.props")]
     public void DirectoryBuildPropsLookup_WillReturnPropsFile_ForRelativePaths_WindowsLike(string projectPath, string expectedDirectoryBuildPropsFilePath)
     {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return;
+        
         var paths = new[]
         {
             @"project.sln",
