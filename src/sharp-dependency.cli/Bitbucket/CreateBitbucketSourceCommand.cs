@@ -2,11 +2,11 @@
 using Spectre.Console;
 using Spectre.Console.Cli;
 
-namespace sharp_dependency.cli;
+namespace sharp_dependency.cli.Bitbucket;
 
 // ReSharper disable once ClassNeverInstantiated.Global
 // ReSharper disable once UnusedAutoPropertyAccessor.Global
-public class ConfigureBitbucketCommand : AsyncCommand<ConfigureBitbucketCommand.Settings>
+public class CreateBitbucketSourceCommand : AsyncCommand<CreateBitbucketSourceCommand.Settings>
 {
     // ReSharper disable once ClassNeverInstantiated.Global
     public sealed class Settings : CommandSettings 

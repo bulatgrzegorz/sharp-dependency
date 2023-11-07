@@ -1,19 +1,29 @@
 ﻿using sharp_dependency.cli;
+using sharp_dependency.cli.Bitbucket;
 using Spectre.Console.Cli;
 
 var app = new CommandApp();
 app.Configure(config =>
 {
+#if DEBUG
     config.PropagateExceptions();
+#endif
+    
     config.UseStrictParsing();
     config.AddBranch("config", x =>
     {
         x.AddCommand<ConfigureNugetCommand>("nuget").WithDescription("Create nuget configuration.");
-        x.AddCommand<ConfigureBitbucketCommand>("bitbucket").WithDescription("Create bitbucket configuration.");
+        
         x.AddCommand<ConfigureCurrentContextCommand>("context").WithDescription("Create current context configuration.");
         x.AddCommand<PrintConfigurationCommand>("get").WithDescription("Print current configuration.");
-        //TODO: Add command to remove bitbucket source by name
+
+        x.AddBranch("bitbucket", b =>
+        {
+            b.AddCommand<CreateBitbucketSourceCommand>("create").WithDescription("Create bitbucket source configuration.");
+            b.AddCommand<DeleteBitbucketSourceCommand>("delete").WithDescription("Delete bitbucket source configuration.");
+        });
     });
+    
     //TODO: Parameters - include pre-release versions, way to limit updating only to specified packages (on specific version?)
     config.AddBranch("update", x =>
     {
