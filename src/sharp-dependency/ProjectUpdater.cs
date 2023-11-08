@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using NuGet.Versioning;
 using SelectiveConditionEvaluator;
+using sharp_dependency.Logger;
 using sharp_dependency.Parsers;
 
 namespace sharp_dependency;
@@ -10,10 +11,12 @@ public class ProjectUpdater
     private readonly IPackageMangerService _packageManager;
     private readonly ConcurrentDictionary<string, Lazy<SelectiveParser>> _selectiveParsers = new();
     private readonly ConcurrentDictionary<(string framework, string condition), bool> _conditionEvaluationCache = new();
+    private readonly IProjectDependencyUpdateLogger _logger;
 
-    public ProjectUpdater(IPackageMangerService packageManager)
+    public ProjectUpdater(IPackageMangerService packageManager, IProjectDependencyUpdateLogger logger)
     {
         _packageManager = packageManager;
+        _logger = logger;
     }
     
     public async Task<UpdateProjectResult> Update(UpdateProjectRequest request)
@@ -34,7 +37,8 @@ public class ProjectUpdater
             Console.WriteLine("Could not determine target framework for project: {0}", request.ProjectPath);
             return new UpdateProjectResult();
         }
-        
+
+        _logger.LogProject(request.ProjectPath);
         foreach (var dependency in projectFile.Dependencies)
         {
             //TODO: We should be also consider directoryBuildProps dependencies here as well. Project file can not determine dependency version for example.
@@ -47,12 +51,12 @@ public class ProjectUpdater
 
             if (dependency.UpdateVersionIfPossible(allVersions, out var newVersion))
             {
-                //TODO: If we want to leave updating packages here, we need to also push here some kind of Logger with methods as: LogDependencyUpdates
-                Console.WriteLine("     {0} {1} -> {2}", dependency.Name, dependency.CurrentVersion, newVersion);    
+                _logger.LogDependency(dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString());   
             }
         }
 
         var updatedProjectContent = await projectFileParser.Generate();
+        _logger.Flush();
         return new UpdateProjectResult(updatedProjectContent);
     }
 

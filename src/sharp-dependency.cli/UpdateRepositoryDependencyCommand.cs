@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Text;
 using NuGet.Configuration;
+using sharp_dependency.cli.Logger;
 using sharp_dependency.Parsers;
 using sharp_dependency.Repositories;
 using sharp_dependency.Repositories.Bitbucket;
@@ -107,7 +108,7 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
 
         var repositoryPaths = (await bitbucketManager.GetRepositoryFilePaths()).ToList();
 
-        var projectUpdater = new ProjectUpdater(nugetManager);
+        var projectUpdater = new ProjectUpdater(nugetManager, new ProjectDependencyUpdateLogger());
         
         var projectPaths = await GetProjectPaths(repositoryPaths, bitbucketManager);
 
@@ -118,7 +119,6 @@ internal sealed class UpdateRepositoryDependencyCommand : AsyncCommand<UpdateRep
         {
             var updatedDependencies = new List<(string name, string oldVersion, string newVersion)>();
             projectUpdatedDependencies.Add((projectPath, updatedDependencies));
-            Console.WriteLine("{0}", projectPath);
 
             var directoryBuildPropsFile = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(repositoryPaths, projectPath);
             var projectContent = await bitbucketManager.GetFileContentRaw(projectPath);

@@ -30,6 +30,11 @@ app.Configure(config =>
         x.AddCommand<UpdateLocalDependencyCommand>("local").WithDescription("Update dependencies within local project.");
         x.AddCommand<UpdateRepositoryDependencyCommand>("repo").WithDescription("Update dependencies within remote repository.");
     });
+
+    config.AddBranch("list", x =>
+    {
+        x.AddCommand<ListLocalDependencyCommand>("local").WithDescription("List dependencies within local project.");
+    });
     //TODO: Create command for exploring dependencies (it could be useful to browse versions in entire workspace/project)
 });
 

@@ -1,5 +1,7 @@
 ﻿using System.Text.Json;
+using Spectre.Console;
 using Spectre.Console.Cli;
+using Spectre.Console.Json;
 
 namespace sharp_dependency.cli;
 
@@ -15,7 +17,14 @@ public class PrintConfigurationCommand : AsyncCommand
         }
         
         var configuration = JsonSerializer.Serialize(currentConfiguration.WithoutSensitiveData(), new JsonSerializerOptions(){WriteIndented = true});
-        Console.WriteLine(configuration);
+        var json = new JsonText(configuration);
+
+        AnsiConsole.Write(
+            new Panel(json)
+                .Header("Configuration")
+                .Collapse()
+                .RoundedBorder()
+                .BorderColor(Color.Yellow));
 
         return 0;
     }

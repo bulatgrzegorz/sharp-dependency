@@ -56,7 +56,7 @@ public class ProjectUpdaterTests
 
         MockPackageManagerWithTestFile(packageManager, package);
 
-        var projectUpdater = new ProjectUpdater(packageManager.Object);
+        var projectUpdater = new ProjectUpdater(packageManager.Object, new DummyLogger());
 
         var projectContent = GetProjectContent(projectName);
         var directoryBuildPropsContent = GetProjectContent(directoryBuildProps);
@@ -73,7 +73,7 @@ public class ProjectUpdaterTests
 
         MockPackageManagerWithTestFile(packageManager, package);
 
-        var projectUpdater = new ProjectUpdater(packageManager.Object);
+        var projectUpdater = new ProjectUpdater(packageManager.Object, new DummyLogger());
 
         var projectContent = GetProjectContent(projectName);
         var updateProjectResult = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectName, projectContent, default));
