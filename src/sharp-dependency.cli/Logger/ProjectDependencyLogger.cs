@@ -10,7 +10,13 @@ public class ProjectDependencyLogger
     
     public void LogProject(string project)
     {
-        _tree = new Tree(project);
+        var path = new TextPath(project)
+            .RootStyle(new Style(foreground: Color.Red))
+            .SeparatorStyle(new Style(foreground: Color.Green))
+            .StemStyle(new Style(foreground: Color.Blue))
+            .LeafStyle(new Style(foreground: Color.Yellow));
+        
+        _tree = new Tree(path);
         
         _table = new Table();
         _table.AddColumn("Dependency name");

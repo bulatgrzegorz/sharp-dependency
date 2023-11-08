@@ -4,7 +4,7 @@ using sharp_dependency.cli.Logger;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
-namespace sharp_dependency.cli;
+namespace sharp_dependency.cli.DependencyCommands;
 
 // ReSharper disable once ClassNeverInstantiated.Global
 // ReSharper disable once UnusedAutoPropertyAccessor.Global

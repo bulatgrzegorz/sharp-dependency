@@ -3,7 +3,7 @@ using NuGet.Configuration;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
-namespace sharp_dependency.cli;
+namespace sharp_dependency.cli.ConfigCommands;
 
 // ReSharper disable once ClassNeverInstantiated.Global
 // ReSharper disable once UnusedAutoPropertyAccessor.Global

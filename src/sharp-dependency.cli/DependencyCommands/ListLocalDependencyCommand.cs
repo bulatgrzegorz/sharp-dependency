@@ -4,7 +4,7 @@ using sharp_dependency.Parsers;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
-namespace sharp_dependency.cli;
+namespace sharp_dependency.cli.DependencyCommands;
 
 public class ListLocalDependencyCommand : LocalDependencyCommandBase<ListLocalDependencyCommand.Settings>
 {
@@ -20,6 +20,7 @@ public class ListLocalDependencyCommand : LocalDependencyCommandBase<ListLocalDe
     {
         var logger = new ProjectDependencyLogger();
         
+        //TODO: Gather dependencies from directory build props files
         var (_, projectPaths, _) = GetRepositoryFiles(settings.Path);
         foreach (var projectPath in projectPaths)
         {

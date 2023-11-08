@@ -1,6 +1,4 @@
-﻿using NuGet.Common;
-
-namespace sharp_dependency;
+﻿namespace sharp_dependency;
 
 //TODO: Right now we do not support nested directory build props files. First one will be chosen (in terms of directory distance)
 public static class DirectoryBuildPropsLookup

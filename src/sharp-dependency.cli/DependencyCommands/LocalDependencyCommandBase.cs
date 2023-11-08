@@ -2,7 +2,7 @@
 using sharp_dependency.Repositories;
 using Spectre.Console.Cli;
 
-namespace sharp_dependency.cli;
+namespace sharp_dependency.cli.DependencyCommands;
 
 public abstract class LocalDependencyCommandBase<T> : AsyncCommand<T> where T : CommandSettings
 {

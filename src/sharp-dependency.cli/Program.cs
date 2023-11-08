@@ -1,5 +1,7 @@
 ﻿using sharp_dependency.cli;
-using sharp_dependency.cli.Bitbucket;
+using sharp_dependency.cli.ConfigCommands;
+using sharp_dependency.cli.ConfigCommands.Bitbucket;
+using sharp_dependency.cli.DependencyCommands;
 using Spectre.Console.Cli;
 
 var app = new CommandApp();
@@ -34,8 +36,8 @@ app.Configure(config =>
     config.AddBranch("list", x =>
     {
         x.AddCommand<ListLocalDependencyCommand>("local").WithDescription("List dependencies within local project.");
+        x.AddCommand<ListRepositoryDependencyCommand>("repo").WithDescription("List dependencies within remote repository.");
     });
-    //TODO: Create command for exploring dependencies (it could be useful to browse versions in entire workspace/project)
 });
 
 await app.RunAsync(args);
