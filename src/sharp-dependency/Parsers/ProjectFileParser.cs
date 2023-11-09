@@ -91,7 +91,6 @@ public class ProjectFileParser : IAsyncDisposable
             return null;
         }
 
-        //TODO: PackageReference in csproj can be missing version, as one could be defined in Directory.Packages.props for example 
         (string currentVersion, Action<string> updateMethod) ParseVersion()
         {
             var versionAttribute = element.Attribute("Version");
@@ -124,8 +123,6 @@ public class ProjectFileParser : IAsyncDisposable
         var (currentVersion, updateVersionMethod) = ParseVersion();
         if (string.IsNullOrEmpty(currentVersion))
         {
-            Console.WriteLine("Could not determine version of dependency: {0}", element);
-
             return null;
         }
 
