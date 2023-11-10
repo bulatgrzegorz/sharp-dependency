@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel;
-using System.Text;
 using NuGet.Configuration;
 using sharp_dependency.cli.Logger;
 using sharp_dependency.Repositories;
@@ -112,39 +111,38 @@ internal sealed class UpdateRepositoryDependencyCommand : RepositoryDependencyCo
         var projectPaths = await GetProjectPaths(repositoryPaths, bitbucketManager);
 
         //TODO: We should check if anything was actually updated in project before
-        var results = new List<(string filePath, string updatedContent)>(projectPaths.Count);
-        var projectUpdatedDependencies = new List<(string filePath, List<(string name, string oldVersion, string newVersion)> dependencies)>();
+        //TODO: Refactor loggers/response from project updater
+        var projectUpdatedDependencies = new List<(Project project, string updatedContent)>(projectPaths.Count);
         foreach (var projectPath in projectPaths)
         {
-            var updatedDependencies = new List<(string name, string oldVersion, string newVersion)>();
-            projectUpdatedDependencies.Add((projectPath, updatedDependencies));
-
             var directoryBuildPropsFile = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(repositoryPaths, projectPath);
             var projectContent = await bitbucketManager.GetFileContentRaw(projectPath);
             var directoryBuildPropsContent = directoryBuildPropsFile is not null ? await bitbucketManager.GetFileContentRaw(directoryBuildPropsFile) : null;
             var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent));
+         
+            projectUpdatedDependencies.Add(
+                (new Project()
+                {
+                    Name = projectPath, 
+                    
+                    UpdatedDependencies = updatedProject.UpdatedDependencies.Select(x => new Dependency(){Name = x.name, CurrentVersion = x.currentVersion, NewVersion = x.newVersion}).ToList()
+                }, updatedProject.UpdatedContent!));
+        }
 
-            if (!settings.DryRun && updatedProject.UpdatedContent is not null)
-            {
-                results.Add((projectPath, updatedProject.UpdatedContent));
-            }
+        if (settings.DryRun)
+        {
+            return 0;
         }
 
         var branch = settings.BranchName ?? "sharp-dependency";
-        await bitbucketManager.CreateCommit(branch, settings.CommitMessage ?? "update dependencies", results);
+        await bitbucketManager.CreateCommit(branch, settings.CommitMessage ?? "update dependencies", projectUpdatedDependencies.Select(x => (x.project.Name, x.updatedContent)).ToList());
         
-        //TODO: Can't make new lines work correctly on bitbucket cloud. Maybe we should use markdown.
-        var pullRequestDescriptionBuilder = new StringBuilder();
-        pullRequestDescriptionBuilder.Append("Updated:");
-        foreach (var (projectFile, dependencies) in projectUpdatedDependencies.Where(x => x.dependencies is {Count: > 0}))
+        var description = new Description()
         {
-            pullRequestDescriptionBuilder.Append($" \n{projectFile}");
-            foreach (var (dependencyName, oldVersion, newVersion) in dependencies)
-            {
-                pullRequestDescriptionBuilder.Append($" \n      {dependencyName} {oldVersion} -> {newVersion}");
-            }
-        }
-        await bitbucketManager.CreatePullRequest(branch, $"[{branch}] pull request", pullRequestDescriptionBuilder.ToString());
+            UpdatedProjects = projectUpdatedDependencies.Select(x => x.project).ToList()
+        };
+        
+        await bitbucketManager.CreatePullRequest(new CreatePullRequest(){Name = $"[{branch}] pull request", SourceBranch = branch, Description = description});
         
         return 0;
     }

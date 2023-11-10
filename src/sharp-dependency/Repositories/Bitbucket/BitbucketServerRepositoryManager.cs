@@ -203,6 +203,12 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         return await CreatePullRequest(sourceBranch, defaultBranch.Id, name, description);
     }
 
+    public async Task<PullRequest> CreatePullRequest(CreatePullRequest request)
+    {
+        var defaultBranch = await GetDefaultBranch();
+        return await CreatePullRequest(request.SourceBranch, defaultBranch.Id, request.Name, ContentFormatter.FormatPullRequestDescription(request.Description));
+    }
+
     private async Task<GetRepositoryResponse> GetRepository()
     {
         var response = await _apiHttpClient.GetAsync((string?)default);

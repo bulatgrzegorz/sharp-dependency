@@ -171,6 +171,14 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
     {
         var response = await _httpClient.PostAsJsonAsync("pullrequests", new
         {
+            rendered = new
+            {
+                description = new
+                {
+                    raw = description,
+                    markup = "markdown"
+                }
+            },
             title = name,
             description,
             close_source_branch = true,
@@ -185,6 +193,7 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         
         if (!response.IsSuccessStatusCode)
         {
+            var r = await response.Content.ReadAsStringAsync();
             throw CreateException($"Could not create pull-request (from branch {sourceBranch})", response.ReasonPhrase);
         }
 
@@ -193,6 +202,11 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         Console.WriteLine("Created pull-request ({0}) with id ({1})", name, content?.Id);
         
         return content!;
+    }
+
+    public Task<PullRequest> CreatePullRequest(CreatePullRequest request)
+    {
+        return CreatePullRequest(request.SourceBranch, request.Name, ContentFormatter.FormatPullRequestDescription(request.Description));
     }
 
     private static async Task<GetSrcResponse?> GetSrc(HttpClient httpClient, string url)

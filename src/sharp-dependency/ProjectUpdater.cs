@@ -39,6 +39,8 @@ public class ProjectUpdater
         }
 
         _logger.LogProject(request.ProjectPath);
+
+        var updatedDependencies = new List<(string name, string currentVersion, string newVersion)>();
         foreach (var dependency in projectFile.Dependencies)
         {
             //TODO: We should be also consider directoryBuildProps dependencies here as well. Project file can not determine dependency version for example.
@@ -51,13 +53,14 @@ public class ProjectUpdater
 
             if (dependency.UpdateVersionIfPossible(allVersions, out var newVersion))
             {
+                updatedDependencies.Add((dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString()));
                 _logger.LogDependency(dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString());   
             }
         }
 
         var updatedProjectContent = await projectFileParser.Generate();
         _logger.Flush();
-        return new UpdateProjectResult(updatedProjectContent);
+        return new UpdateProjectResult(updatedProjectContent, updatedDependencies);
     }
 
     private async Task<IReadOnlyCollection<NuGetVersion>> GetPackageVersions(IReadOnlyCollection<string> projectTargetFrameworks, Dependency dependency)
@@ -97,5 +100,5 @@ public class ProjectUpdater
     }
 
     public readonly record struct UpdateProjectRequest(string ProjectPath, string ProjectContent, string? DirectoryBuildProps);
-    public readonly record struct UpdateProjectResult(string? UpdatedContent);
+    public readonly record struct UpdateProjectResult(string? UpdatedContent, List<(string name, string currentVersion, string newVersion)> UpdatedDependencies);
 }
