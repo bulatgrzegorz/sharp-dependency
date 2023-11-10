@@ -13,19 +13,20 @@ public class Dependency
         Conditions = conditions;
         UpdateVersionMethod = updateVersionMethod;
         CurrentNugetVersion = NuGetVersion.Parse(CurrentVersion);
-        VersionRange = new VersionRange(CurrentNugetVersion, new FloatRange(NuGetVersionFloatBehavior.Major, CurrentNugetVersion));
     }
 
-    public bool UpdateVersionIfPossible(IReadOnlyCollection<NuGetVersion> allVersions, [NotNullWhen(true)] out NuGetVersion? newVersion)
+    public bool UpdateVersionIfPossible(IReadOnlyCollection<NuGetVersion> allVersions, bool includePrerelease, VersionLock versionLock, [NotNullWhen(true)] out NuGetVersion? newVersion)
     {
         newVersion = null;
-        var versionToUpdate = VersionRange.FindBestMatch(allVersions);
+        
+        var versionRange = new VersionRange(CurrentNugetVersion, new FloatRange(GetVersionFloatBehavior(includePrerelease, versionLock), CurrentNugetVersion));
+        var versionToUpdate = versionRange.FindBestMatch(allVersions);
         if (versionToUpdate is null)
         {
             return false;
         }
 
-        if (!VersionRange.IsBetter(CurrentNugetVersion, versionToUpdate))
+        if (!versionRange.IsBetter(CurrentNugetVersion, versionToUpdate))
         {
             return false;
         }
@@ -36,10 +37,21 @@ public class Dependency
         return true;
     }
 
+    private NuGetVersionFloatBehavior GetVersionFloatBehavior(bool includePrerelease, VersionLock versionLock) =>
+        (includePrerelease, versionLock) switch
+        {
+            (true, VersionLock.None) => NuGetVersionFloatBehavior.AbsoluteLatest,
+            (true, VersionLock.Major) => NuGetVersionFloatBehavior.PrereleaseMinor,
+            (true, VersionLock.Minor) => NuGetVersionFloatBehavior.PrereleasePatch,
+            (false, VersionLock.None) => NuGetVersionFloatBehavior.Major,
+            (false, VersionLock.Major) => NuGetVersionFloatBehavior.Minor,
+            (false, VersionLock.Minor) => NuGetVersionFloatBehavior.Patch,
+            _ => throw new ArgumentOutOfRangeException($"Could not create {nameof(NuGetVersionFloatBehavior)} from parameters includePrerelease: {includePrerelease}, versionLock: {versionLock}")
+        };
+
     public string Name { get; }
     public string CurrentVersion { get; }
     public string[] Conditions { get; }
     private Action<string> UpdateVersionMethod { get; }
-    private VersionRange VersionRange { get; }
     private NuGetVersion CurrentNugetVersion { get; }
 }

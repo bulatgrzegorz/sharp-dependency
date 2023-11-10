@@ -77,7 +77,7 @@ public class ProjectFileParserTests
 	    var projectFile = await parser.Parse();
 
 	    var dependency = projectFile.Dependencies.First(x => x.Name == "Lib1");
-	    dependency.UpdateVersionIfPossible(new Collection<NuGetVersion>(){NuGetVersion.Parse("1.0.4")}, out _);
+	    dependency.UpdateVersionIfPossible(new Collection<NuGetVersion>(){NuGetVersion.Parse("1.0.4")}, false, VersionLock.None, out _);
 
 	    var resultContent = await parser.Generate();
 	    

@@ -44,14 +44,15 @@ public class ProjectUpdater
         foreach (var dependency in projectFile.Dependencies)
         {
             //TODO: We should be also consider directoryBuildProps dependencies here as well. Project file can not determine dependency version for example.
-            
-            var allVersions = await GetPackageVersions(projectTargetFrameworks, dependency);
+
+            var includePrerelease = false;
+            var allVersions = await GetPackageVersions(projectTargetFrameworks, dependency, includePrerelease);
             if (allVersions.Count == 0)
             {
                 continue;
             }
 
-            if (dependency.UpdateVersionIfPossible(allVersions, out var newVersion))
+            if (dependency.UpdateVersionIfPossible(allVersions, request.IncludePrerelease, request.VersionLock, out var newVersion))
             {
                 updatedDependencies.Add((dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString()));
                 _logger.LogDependency(dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString());   
@@ -63,11 +64,11 @@ public class ProjectUpdater
         return new UpdateProjectResult(updatedProjectContent, updatedDependencies);
     }
 
-    private async Task<IReadOnlyCollection<NuGetVersion>> GetPackageVersions(IReadOnlyCollection<string> projectTargetFrameworks, Dependency dependency)
+    private async Task<IReadOnlyCollection<NuGetVersion>> GetPackageVersions(IReadOnlyCollection<string> projectTargetFrameworks, Dependency dependency, bool includePrerelease)
     {
         if (dependency.Conditions.Length <= 0)
         {
-            return await _packageManager.GetPackageVersions(dependency.Name, projectTargetFrameworks);
+            return await _packageManager.GetPackageVersions(dependency.Name, projectTargetFrameworks, includePrerelease);
         }
         
         var targetFrameworks = new List<string>();
@@ -99,6 +100,6 @@ public class ProjectUpdater
         
     }
 
-    public readonly record struct UpdateProjectRequest(string ProjectPath, string ProjectContent, string? DirectoryBuildProps);
+    public readonly record struct UpdateProjectRequest(string ProjectPath, string ProjectContent, string? DirectoryBuildProps, bool IncludePrerelease, VersionLock VersionLock);
     public readonly record struct UpdateProjectResult(string? UpdatedContent, List<(string name, string currentVersion, string newVersion)> UpdatedDependencies);
 }

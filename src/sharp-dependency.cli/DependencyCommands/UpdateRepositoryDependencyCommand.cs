@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using NuGet.Configuration;
 using sharp_dependency.cli.Logger;
+using sharp_dependency.Parsers;
 using sharp_dependency.Repositories;
 using sharp_dependency.Repositories.Bitbucket;
 using Spectre.Console;
@@ -9,6 +10,7 @@ using CloudBitbucket = sharp_dependency.cli.Configuration.Bitbucket.CloudBitbuck
 using ServerBitbucket = sharp_dependency.cli.Configuration.Bitbucket.ServerBitbucket;
 using AppPasswordCredentials = sharp_dependency.cli.Configuration.Bitbucket.BitbucketCredentials.AppPasswordBitbucketCredentials;
 using AccessTokenCredentials = sharp_dependency.cli.Configuration.Bitbucket.BitbucketCredentials.AccessTokenBitbucketCredentials;
+using Dependency = sharp_dependency.Repositories.Dependency;
 
 namespace sharp_dependency.cli.DependencyCommands;
 
@@ -39,6 +41,16 @@ internal sealed class UpdateRepositoryDependencyCommand : RepositoryDependencyCo
         [Description("Commit message with which dependencies update commit will going to be done.")]
         [CommandOption("--commitMessage")]
         public string? CommitMessage { get; init; }
+        
+        [Description("Command will look for pre-release versions of packages.")]
+        [CommandOption("--prerelease")]
+        [DefaultValue(false)]
+        public bool IncludePrerelease { get; init; }
+        
+        [Description("Specifies whether the package should be locked to the current Major or Minor version. Possible values: None (default), Major, Minor")]
+        [CommandOption("-v|--version-lock")]
+        [DefaultValue(VersionLock.None)]
+        public VersionLock VersionLock { get; init; }
         
         [Description("Command will determine dependencies to be updated without actually updating them.")]
         [CommandOption("--dry-run")]
@@ -118,7 +130,7 @@ internal sealed class UpdateRepositoryDependencyCommand : RepositoryDependencyCo
             var directoryBuildPropsFile = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(repositoryPaths, projectPath);
             var projectContent = await bitbucketManager.GetFileContentRaw(projectPath);
             var directoryBuildPropsContent = directoryBuildPropsFile is not null ? await bitbucketManager.GetFileContentRaw(directoryBuildPropsFile) : null;
-            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent));
+            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent, settings.IncludePrerelease, settings.VersionLock));
          
             projectUpdatedDependencies.Add(
                 (new Project()

@@ -1,10 +1,10 @@
-﻿namespace sharp_dependency.Repositories;
+﻿// ReSharper disable UnusedAutoPropertyAccessor.Global
+#pragma warning disable CS8618
+namespace sharp_dependency.Repositories;
 
 public class PullRequest
 {
     public int Id { get; set; }
-    
-    
 }
 
 public class CreatePullRequest

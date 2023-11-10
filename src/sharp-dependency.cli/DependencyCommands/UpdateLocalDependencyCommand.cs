@@ -1,6 +1,8 @@
 ﻿using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using NuGet.Configuration;
 using sharp_dependency.cli.Logger;
+using sharp_dependency.Parsers;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -11,6 +13,7 @@ namespace sharp_dependency.cli.DependencyCommands;
 internal sealed class UpdateLocalDependencyCommand : LocalDependencyCommandBase<UpdateLocalDependencyCommand.Settings>
 {
     // ReSharper disable once ClassNeverInstantiated.Global
+    [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
     public sealed class Settings : CommandSettings 
     {
         [Description("Path to solution/csproj which dependency should be updated")]
@@ -20,6 +23,16 @@ internal sealed class UpdateLocalDependencyCommand : LocalDependencyCommandBase<
         [Description("Command will determine dependencies to be updated without actually updating them.")]
         [CommandOption("--dry-run")]
         public bool DryRun { get; init; }
+        
+        [Description("Command will look for pre-release versions of packages.")]
+        [CommandOption("--prerelease")]
+        [DefaultValue(false)]
+        public bool IncludePrerelease { get; init; }
+        
+        [Description("Specifies whether the package should be locked to the current Major or Minor version. Possible values: None (default), Major, Minor")]
+        [CommandOption("-v|--version-lock")]
+        [DefaultValue(VersionLock.None)]
+        public VersionLock VersionLock { get; init; }
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
@@ -56,7 +69,7 @@ internal sealed class UpdateLocalDependencyCommand : LocalDependencyCommandBase<
             var directoryBuildPropsContent = directoryBuildPropsPath is not null ? await File.ReadAllTextAsync(projectPath) : null;
             var projectContent = await File.ReadAllTextAsync(projectPath);
 
-            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent));
+            var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent, settings.IncludePrerelease, settings.VersionLock));
 
             if (!settings.DryRun && updatedProject.UpdatedContent is not null)
             {
