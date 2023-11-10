@@ -1,5 +1,7 @@
 # sharp-dependency
 
+<img src="docs/logo.png" alt="drawing" width="300"/>
+
 Sharp-dependency is a tool that make updating dependency in your .NET projects easier or even totaly automatic. Inspiration for creation was excellent [dependabot](https://github.com/dependabot) and [dotnet-outdated](https://github.com/dotnet-outdated/dotnet-outdated). 
 
 ## Motivation
