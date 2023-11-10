@@ -1,5 +1,4 @@
-﻿using sharp_dependency.cli;
-using sharp_dependency.cli.ConfigCommands;
+﻿using sharp_dependency.cli.ConfigCommands;
 using sharp_dependency.cli.ConfigCommands.Bitbucket;
 using sharp_dependency.cli.DependencyCommands;
 using Spectre.Console.Cli;
@@ -12,6 +11,7 @@ app.Configure(config =>
 #endif
     
     config.UseStrictParsing();
+    
     config.AddBranch("config", x =>
     {
         x.AddCommand<ConfigureNugetCommand>("nuget").WithDescription("Create nuget configuration.");
@@ -26,7 +26,7 @@ app.Configure(config =>
         });
     });
     
-    //TODO: Parameters - include pre-release versions, way to limit updating only to specified packages (on specific version?)
+    //TODO: Parameters - include way to limit updating only to specified packages (on specific version?)
     config.AddBranch("update", x =>
     {
         x.AddCommand<UpdateLocalDependencyCommand>("local").WithDescription("Update dependencies within local project.");

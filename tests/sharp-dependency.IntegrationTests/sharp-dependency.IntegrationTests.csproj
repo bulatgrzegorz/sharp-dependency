@@ -29,6 +29,9 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Content Include="testProjects\versionLockPrereleaseFlag.csproj">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
       <Content Include="testProjects\simple.csproj">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
@@ -50,10 +53,16 @@
       <Content Include="testProjects\simple_withoutTargetFramework.csproj">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
+      <Content Include="testProjects\versionLockPrereleaseFlag_Prerelease.csproj">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
       <None Remove="testProjects\Directory.Build.props" />
       <Content Include="testProjects\Net8TargetFramework.Directory.Build.props">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
+      <None Update="testData\System.Text.JsonVersions.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
     <ItemGroup>

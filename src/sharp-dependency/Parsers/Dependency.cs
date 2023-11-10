@@ -18,8 +18,8 @@ public class Dependency
     public bool UpdateVersionIfPossible(IReadOnlyCollection<NuGetVersion> allVersions, bool includePrerelease, VersionLock versionLock, [NotNullWhen(true)] out NuGetVersion? newVersion)
     {
         newVersion = null;
-        
-        var versionRange = new VersionRange(CurrentNugetVersion, new FloatRange(GetVersionFloatBehavior(includePrerelease, versionLock), CurrentNugetVersion));
+
+        var versionRange = GetVersionRange(includePrerelease, versionLock);
         var versionToUpdate = versionRange.FindBestMatch(allVersions);
         if (versionToUpdate is null)
         {
@@ -35,6 +35,19 @@ public class Dependency
         UpdateVersionMethod(versionToUpdate.ToNormalizedString());
 
         return true;
+    }
+
+    private VersionRange GetVersionRange(bool includePrerelease, VersionLock versionLock)
+    {
+        if (versionLock != VersionLock.None && includePrerelease)
+        {
+            var prefix = NuGetVersion.TryParse(CurrentVersion, out var nugetVersion)
+                ? nugetVersion.IsPrerelease ? nugetVersion.ReleaseLabels.First() : string.Empty
+                : string.Empty;
+            return new VersionRange(CurrentNugetVersion, new FloatRange(GetVersionFloatBehavior(includePrerelease, versionLock), CurrentNugetVersion, prefix));
+        }
+
+        return new VersionRange(CurrentNugetVersion, new FloatRange(GetVersionFloatBehavior(includePrerelease, versionLock), CurrentNugetVersion));
     }
 
     private NuGetVersionFloatBehavior GetVersionFloatBehavior(bool includePrerelease, VersionLock versionLock) =>

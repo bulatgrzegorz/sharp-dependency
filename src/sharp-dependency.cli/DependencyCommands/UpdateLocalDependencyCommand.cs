@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using NuGet.Configuration;
 using sharp_dependency.cli.Logger;
 using sharp_dependency.Parsers;
 using Spectre.Console;
@@ -44,21 +43,10 @@ internal sealed class UpdateLocalDependencyCommand : LocalDependencyCommandBase<
             return 1;
         }
 
-        if (currentConfiguration.NugetConfiguration is null)
-        {
-            Console.WriteLine("[ERROR]: There is no nuget configuration created yet. Use -h|--help for more info.");
-            return 1;
-        }
-        
-        var packageSourceProvider = new PackageSourceProvider(new NuGet.Configuration.Settings(currentConfiguration.NugetConfiguration.ConfigFileDirectory, currentConfiguration.NugetConfiguration.ConfigFileName));
-        var packageSources = packageSourceProvider.LoadPackageSources().ToList();
-        if (packageSources is { Count: 0 })
-        {
-            Console.WriteLine("[ERROR]: Given nuget configuration has no package sources. We cannot determine any package version using it.");
-            return 1;
-        }
+        var nugetManager = currentConfiguration.GetNugetManager();
 
-        var nugetManager = new NugetPackageSourceMangerChain(packageSources.Select(x => new NugetPackageSourceManger(x)).ToArray());
+        var packages = await nugetManager.GetPackageVersions("System.Text.Json", new[] { "net6.0" }, true);
+        var pp = packages.Select(x => x.ToNormalizedString()).ToList();
         var projectUpdater = new ProjectUpdater(nugetManager, new ProjectDependencyUpdateLogger());
         
         var (basePath, projectPaths, directoryBuildPropsPaths) = GetRepositoryFiles(settings.Path);

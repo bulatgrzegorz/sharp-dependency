@@ -33,7 +33,7 @@ public class ProjectDependencyUpdateLogger : IProjectDependencyUpdateLogger
 
     public void Flush()
     {
-        if (_tree is not null && _table is not null)
+        if (_tree is not null && _table is {Columns.Count: > 0})
         {
             AnsiConsole.Write(_tree);    
         }

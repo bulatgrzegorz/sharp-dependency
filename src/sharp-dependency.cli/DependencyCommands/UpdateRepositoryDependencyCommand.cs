@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel;
-using NuGet.Configuration;
 using sharp_dependency.cli.Logger;
 using sharp_dependency.Parsers;
 using sharp_dependency.Repositories;
@@ -65,39 +64,11 @@ internal sealed class UpdateRepositoryDependencyCommand : RepositoryDependencyCo
             Console.WriteLine("[ERROR]: There is no configuration created yet. Use -h|--help for more info.");
             return 1;
         }
-
-        if (currentConfiguration.NugetConfiguration is null)
-        {
-            Console.WriteLine("[ERROR]: There is no nuget configuration created yet. Use -h|--help for more info.");
-            return 1;
-        }
         
-        var packageSourceProvider = new PackageSourceProvider(new NuGet.Configuration.Settings(currentConfiguration.NugetConfiguration.ConfigFileDirectory, currentConfiguration.NugetConfiguration.ConfigFileName));
-        var packageSources = packageSourceProvider.LoadPackageSources().ToList();
-        if (packageSources is { Count: 0 })
+        var nugetManager = currentConfiguration.GetNugetManager();
+        var bitbucket = currentConfiguration.GetBitbucket(settings.RepositorySourceName);
+        if (bitbucket is null)
         {
-            Console.WriteLine("[ERROR]: Given nuget configuration has no package sources. We cannot determine any package version using it.");
-            return 1;
-        }
-
-        var nugetManager = new NugetPackageSourceMangerChain(packageSources.Select(x => new NugetPackageSourceManger(x)).ToArray());
-
-        if (currentConfiguration.Bitbuckets is { Count: 0 })
-        {
-            Console.WriteLine("[ERROR]: Given bitbucket configuration has no repository sources.");
-            return 1;
-        }
-
-        var repositoryContext = settings.RepositorySourceName ?? currentConfiguration.CurrentConfiguration?.RepositoryContext;
-        if (string.IsNullOrEmpty(repositoryContext))
-        {
-            Console.WriteLine("[ERROR]: Either repository source name parameter should be used or repository source name as current context.");
-            return 1;
-        }
-
-        if (!currentConfiguration.Bitbuckets.TryGetValue(repositoryContext, out var bitbucket))
-        {
-            Console.WriteLine("[ERROR]: There is no bitbucket repository configuration for repository source name {0}.", repositoryContext);
             return 1;
         }
 

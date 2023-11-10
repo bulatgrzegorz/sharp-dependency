@@ -50,6 +50,30 @@ public class ProjectUpdaterTests
         await VerifyProjectPackageUpdate("Microsoft.EntityFrameworkCore", "simple_withoutTargetFramework.csproj", "Net8TargetFramework.Directory.Build.props", "7.0.12");
     }
     
+    [Theory]
+    [InlineData(false, VersionLock.Minor, "7.0.3")]
+    [InlineData(true, VersionLock.Minor, "7.0.3")]
+    [InlineData(false, VersionLock.Major, "7.2.0")]
+    [InlineData(true, VersionLock.Major, "7.2.0")]
+    [InlineData(false, VersionLock.None, "7.2.0")]
+    [InlineData(true, VersionLock.None, "8.0.0-rc.2.23479.6")]
+    public async Task ProjectUpdater_WillUpgradeInRespectOf_IncludePrereleaseFlag_AndVersionLock(bool includePrerelease, VersionLock versionLock, string expectedVersion)
+    {
+        await VerifyProjectPackageUpdate("System.Text.Json", "versionLockPrereleaseFlag.csproj", expectedVersion, includePrerelease, versionLock);
+    }
+    
+    [Theory]
+    [InlineData(false, VersionLock.Minor, "7.0.3")]
+    [InlineData(true, VersionLock.Minor, "7.0.3")]
+    [InlineData(false, VersionLock.Major, "7.2.0")]
+    [InlineData(true, VersionLock.Major, "7.2.0")]
+    [InlineData(false, VersionLock.None, "7.2.0")]
+    [InlineData(true, VersionLock.None, "8.0.0-rc.2.23479.6")]
+    public async Task ProjectUpdater_WillUpgradeInRespectOf_IncludePrereleaseFlag_AndVersionLock_WhenCurrentPrerelease(bool includePrerelease, VersionLock versionLock, string expectedVersion)
+    {
+        await VerifyProjectPackageUpdate("System.Text.Json", "versionLockPrereleaseFlag_Prerelease.csproj", expectedVersion, includePrerelease, versionLock);
+    }
+    
     private async Task VerifyProjectPackageUpdate(string package, string projectName, string directoryBuildProps, string expectedVersion)
     {
         var packageManager = new Mock<IPackageMangerService>();
@@ -67,7 +91,7 @@ public class ProjectUpdaterTests
         Assert.Equal(expectedVersion, efCore.CurrentVersion);
     }
     
-    private async Task VerifyProjectPackageUpdate(string package, string projectName, string expectedVersion)
+    private async Task VerifyProjectPackageUpdate(string package, string projectName, string expectedVersion, bool includePrerelease = false, VersionLock versionLock = VersionLock.None)
     {
         var packageManager = new Mock<IPackageMangerService>();
 
@@ -76,7 +100,7 @@ public class ProjectUpdaterTests
         var projectUpdater = new ProjectUpdater(packageManager.Object, new DummyLogger());
 
         var projectContent = GetProjectContent(projectName);
-        var updateProjectResult = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectName, projectContent, default, false, VersionLock.None));
+        var updateProjectResult = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectName, projectContent, default, includePrerelease, versionLock));
 
         var efCore = await GetProjectDependency(updateProjectResult.UpdatedContent!, package);
 
