@@ -7,6 +7,7 @@ namespace sharp_dependency.cli.DependencyCommands;
 public abstract class LocalDependencyCommandBase<T> : AsyncCommand<T> where T : CommandSettings
 {
     private bool IsPathSolutionFile(string path) => path.EndsWith(".sln", StringComparison.InvariantCultureIgnoreCase);
+    private bool IsPathProjectFile(string path) => path.EndsWith(".csproj", StringComparison.InvariantCultureIgnoreCase);
     
     protected (string basePath, IReadOnlyCollection<string> projectPaths, IReadOnlyCollection<string> directoryBuildProps) GetRepositoryFiles(string? path)
     {
@@ -17,22 +18,40 @@ public abstract class LocalDependencyCommandBase<T> : AsyncCommand<T> where T : 
         }
 
         var basePath = Path.GetDirectoryName(path)!;
-        if (!IsPathSolutionFile(path)) return (basePath, new[] { path }, DirectoryBuildPropsLookup.SearchForDirectoryBuildPropsFiles(basePath, false));
+        if (IsPathSolutionFile(path))
+        {
+            var solutionFileParser = new SolutionFileParser();
+            var pathProjects = solutionFileParser.GetProjectPaths(FileContent.CreateFromLocalPath(path));
         
-        var solutionFileParser = new SolutionFileParser();
-        var pathProjects = solutionFileParser.GetProjectPaths(FileContent.CreateFromLocalPath(path));
+            return (basePath, pathProjects, DirectoryBuildPropsLookup.SearchForDirectoryBuildPropsFiles(basePath, true));
+        }
+
+        if (IsPathProjectFile(path))
+        {
+            return (basePath, new[] { path }, DirectoryBuildPropsLookup.SearchForDirectoryBuildPropsFiles(basePath, false));
+        }
+
+        if (!File.GetAttributes(path).HasFlag(FileAttributes.Directory))
+        {
+            throw new ArgumentException($"Only solution and project file are supported for now. Got path: {path}");
+        }
         
-        return (basePath, pathProjects, DirectoryBuildPropsLookup.SearchForDirectoryBuildPropsFiles(basePath, true));
+        return (path, GetProjectFiles(path), DirectoryBuildPropsLookup.SearchForDirectoryBuildPropsFiles(path, true));
     }
     
     private static IReadOnlyCollection<string> GetProjectFilesForCurrentDirectory()
     {
         var currentDirectory = Directory.GetCurrentDirectory();
-        var solutionFiles = Directory.GetFiles(currentDirectory, "*.sln");
+        return GetProjectFiles(currentDirectory);
+    }
+
+    private static IReadOnlyCollection<string> GetProjectFiles(string directory)
+    {
+        var solutionFiles = Directory.GetFiles(directory, "*.sln");
         if (solutionFiles.Length > 1)
         {
             throw new ArgumentException(
-                $"There are multiple solution files ({string.Join(", ", solutionFiles)}) in current directory ({currentDirectory}). Please pass specific file (sln/csproj) that should be updated.");
+                $"There are multiple solution files ({string.Join(", ", solutionFiles)}) in current directory ({directory}). Please pass specific file (sln/csproj) that should be updated.");
         }
 
         if (solutionFiles.Length == 1)
@@ -41,12 +60,13 @@ public abstract class LocalDependencyCommandBase<T> : AsyncCommand<T> where T : 
             return solutionFileParser.GetProjectPaths(FileContent.CreateFromLocalPath(solutionFiles[0]));
         }
 
-        var projectFiles = Directory.GetFiles(currentDirectory, "*.csproj");
+        var projectFiles = Directory.GetFiles(directory, "*.csproj");
         if (projectFiles.Length == 0)
         {
-            Console.WriteLine($"Could not find any project file in current directory ({currentDirectory}). Please either change directory or pass specific file (sln/csproj) that should be updated.");
+            Console.WriteLine(
+                $"Could not find any project file in current directory ({directory}). Please either change directory or pass specific file (sln/csproj) that should be updated.");
         }
-        
+
         return projectFiles;
     }
 }
