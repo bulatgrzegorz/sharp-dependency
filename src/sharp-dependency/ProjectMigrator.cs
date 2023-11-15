@@ -6,6 +6,7 @@ using sharp_dependency.Parsers;
 
 namespace sharp_dependency;
 
+//TODO: Should we support prerelease versions here?
 public class ProjectMigrator
 {
     private readonly IPackageMangerService _packageManager;
@@ -43,37 +44,26 @@ public class ProjectMigrator
         foreach (var dependency in projectFile.Dependencies)
         {
             var migrationInstruction = request.MigrationInstructions.SingleOrDefault(x => x.DependencyName.Equals(dependency.Name, StringComparison.InvariantCultureIgnoreCase));
-            if (migrationInstruction.DependencyName is null)
+            if (migrationInstruction is null)
             {
-                continue;
-            }
-
-            if (migrationInstruction.Instruction == Instruction.Remove)
-            {
-                dependency.RemoveDependency();
-                migrationActions.Add(new MigrationAction(migrationInstruction.Instruction, migrationInstruction.DependencyName, dependency.CurrentVersion, null));
-                //TODO:
-                // _logger.LogDependency(dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString());   
                 continue;
             }
             
-            //TODO: Check instruction
-            //TODO: Should we support prerelease versions here?
             var allVersions = await GetPackageVersions(projectTargetFrameworks, dependency, false);
             if (allVersions.Count == 0)
             {
-                Console.WriteLine("Could not execute instruction {0} on {1}. Package could not be find.", migrationInstruction.Instruction, migrationInstruction.DependencyName);
+                Console.WriteLine("Could not execute instruction update on {0}. Package could not be find.", migrationInstruction.DependencyName);
                 continue;
             }
-            
+
             if (dependency.UpdateVersionIfPossible(allVersions, migrationInstruction.VersionRange, out var newVersion))
             {
-                migrationActions.Add(new MigrationAction(migrationInstruction.Instruction, migrationInstruction.DependencyName, dependency.CurrentVersion, newVersion.ToNormalizedString()));
-                _logger.LogDependency(dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString());   
+                migrationActions.Add(new MigrationAction(migrationInstruction.DependencyName, dependency.CurrentVersion, newVersion.ToNormalizedString()));
+                _logger.LogDependency(dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString());
             }
             else
             {
-                Console.WriteLine("Could not execute instruction {0} on {1}. Package with current version {2} was not updated.", migrationInstruction.Instruction, migrationInstruction.DependencyName, dependency.CurrentVersion);
+                Console.WriteLine("Could not execute update on {0}. Package with current version {1} was not updated.", migrationInstruction.DependencyName, dependency.CurrentVersion);
             }
         }
         
@@ -116,16 +106,9 @@ public class ProjectMigrator
         });
     }
     
-    public enum Instruction
-    {
-        Update,
-        Remove,
-        
-    }
-
-    public readonly record struct MigrationInstruction(Instruction Instruction, string DependencyName, VersionRange VersionRange);
-    public readonly record struct MigrationAction(Instruction Instruction, string DependencyName, string CurrentVersion, string? NewVersion);
+    public record MigrationInstruction(string DependencyName, VersionRange VersionRange);
+    public record MigrationAction(string DependencyName, string CurrentVersion, string NewVersion);
     
-    public readonly record struct UpdateProjectRequest(string ProjectPath, string ProjectContent, string? DirectoryBuildProps, List<MigrationInstruction> MigrationInstructions);
+    public readonly record struct UpdateProjectRequest(string ProjectPath, string ProjectContent, string? DirectoryBuildProps, IEnumerable<MigrationInstruction> MigrationInstructions);
     public readonly record struct UpdateProjectResult(string? UpdatedContent, List<MigrationAction> UpdatedDependencies);
 }

@@ -65,17 +65,4 @@ internal sealed class UpdateLocalDependencyCommand : LocalDependencyCommandBase<
 
         return 0;
     }
-
-    public override ValidationResult Validate(CommandContext context, Settings settings)
-    {
-        if (!string.IsNullOrWhiteSpace(settings.Path))
-        {
-            if (!settings.Path.EndsWith(".sln", StringComparison.InvariantCultureIgnoreCase) && !settings.Path.EndsWith(".csproj", StringComparison.InvariantCultureIgnoreCase))
-            {
-                return ValidationResult.Error($"Setting {nameof(settings.Path)} must be either solution (sln) or project (csproj) file.");
-            }
-        }
-        
-        return ValidationResult.Success();
-    }
 }
