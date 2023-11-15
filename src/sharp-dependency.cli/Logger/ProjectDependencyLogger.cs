@@ -32,9 +32,9 @@ public class ProjectDependencyLogger
 
     public void Flush()
     {
-        if (_tree is not null && _table is {Columns.Count: > 0})
+        if (_tree is not null && _table is {Rows.Count: > 0})
         {
-            AnsiConsole.Write(_tree);    
+            AnsiConsole.Write(_tree);
         }
     }
 }
