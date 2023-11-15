@@ -6,15 +6,43 @@ namespace sharp_dependency.Parsers;
 //TODO: Some configuration file, where it will be possible to configure which dependencies and how should be updated
 public class Dependency
 {
-    public Dependency(string name, string currentVersion, string[] conditions, Action<string> updateVersionMethod)
+    public Dependency(string name, string currentVersion, string[] conditions, Action<string> updateVersionMethod, Action removePackageMethod)
     {
         Name = name;
         CurrentVersion = currentVersion;
         Conditions = conditions;
         UpdateVersionMethod = updateVersionMethod;
+        RemovePackageMethod = removePackageMethod;
         CurrentNugetVersion = NuGetVersion.Parse(CurrentVersion);
     }
 
+    public void RemoveDependency()
+    {
+        RemovePackageMethod();
+    }
+    
+    public bool UpdateVersionIfPossible(IReadOnlyCollection<NuGetVersion> allVersions, VersionRange versionRange, [NotNullWhen(true)] out NuGetVersion? newVersion)
+    {
+        newVersion = null;
+
+        var versionToUpdate = versionRange.FindBestMatch(allVersions);
+        if (versionToUpdate is null)
+        {
+            return false;
+        }
+
+        //if current version satisfies range, and is better then best match (algorithm favor lower versions for example) we will not update it
+        if (versionRange.Satisfies(CurrentNugetVersion) && !versionRange.IsBetter(CurrentNugetVersion, versionToUpdate))
+        {
+            return false;
+        }
+
+        newVersion = versionToUpdate;
+        UpdateVersionMethod(versionToUpdate.ToNormalizedString());
+
+        return true;
+    }
+    
     public bool UpdateVersionIfPossible(IReadOnlyCollection<NuGetVersion> allVersions, bool includePrerelease, VersionLock versionLock, [NotNullWhen(true)] out NuGetVersion? newVersion)
     {
         newVersion = null;
@@ -26,6 +54,7 @@ public class Dependency
             return false;
         }
 
+        //here we do not need to check if current version satisfies range, as it was build based on it
         if (!versionRange.IsBetter(CurrentNugetVersion, versionToUpdate))
         {
             return false;
@@ -66,5 +95,6 @@ public class Dependency
     public string CurrentVersion { get; }
     public string[] Conditions { get; }
     private Action<string> UpdateVersionMethod { get; }
+    private Action RemovePackageMethod { get; }
     private NuGetVersion CurrentNugetVersion { get; }
 }

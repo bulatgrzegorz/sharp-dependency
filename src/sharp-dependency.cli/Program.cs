@@ -33,6 +33,11 @@ app.Configure(config =>
         x.AddCommand<UpdateRepositoryDependencyCommand>("repo").WithDescription("Update dependencies within remote repository.");
     });
 
+    config.AddBranch("migrate", x =>
+    {
+        x.AddCommand<MigrateLocalDependencyCommand>("local");
+    });
+
     config.AddBranch("list", x =>
     {
         x.AddCommand<ListLocalDependencyCommand>("local").WithDescription("List dependencies within local project.");

@@ -9,6 +9,7 @@ public abstract class LocalDependencyCommandBase<T> : AsyncCommand<T> where T : 
     private bool IsPathSolutionFile(string path) => path.EndsWith(".sln", StringComparison.InvariantCultureIgnoreCase);
     private bool IsPathProjectFile(string path) => path.EndsWith(".csproj", StringComparison.InvariantCultureIgnoreCase);
     
+    //TODO: Tests
     protected (string basePath, IReadOnlyCollection<string> projectPaths, IReadOnlyCollection<string> directoryBuildProps) GetRepositoryFiles(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
