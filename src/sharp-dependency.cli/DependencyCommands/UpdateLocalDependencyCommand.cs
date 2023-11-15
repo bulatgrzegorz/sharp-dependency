@@ -44,9 +44,7 @@ internal sealed class UpdateLocalDependencyCommand : LocalDependencyCommandBase<
         }
 
         var nugetManager = currentConfiguration.GetNugetManager();
-
-        var packages = await nugetManager.GetPackageVersions("System.Text.Json", new[] { "net6.0" }, true);
-        var pp = packages.Select(x => x.ToNormalizedString()).ToList();
+        
         var projectUpdater = new ProjectUpdater(nugetManager, new ProjectDependencyUpdateLogger());
         
         var (basePath, projectPaths, directoryBuildPropsPaths) = GetRepositoryFiles(settings.Path);
