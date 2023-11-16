@@ -2,6 +2,7 @@
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
+using sharp_dependency.Logger;
 
 namespace sharp_dependency.Parsers;
 
@@ -67,6 +68,7 @@ public class ProjectFileParser : IAsyncDisposable
         {
             var condition = itemGroup.Attribute("Condition")?.Value;
 
+            
             foreach (var packageReference in itemGroup.Elements("PackageReference"))
             {
                 var dependency = ParseDependency(packageReference, condition);
@@ -86,7 +88,7 @@ public class ProjectFileParser : IAsyncDisposable
         var name = element.Attribute("Include")?.Value;
         if (string.IsNullOrEmpty(name))
         {
-            Console.WriteLine("Could not determine name of dependency: {0}", element);
+            Log.LogInfo("Could not determine name of dependency: {0}", element);
 
             return null;
         }

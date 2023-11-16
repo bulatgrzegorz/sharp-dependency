@@ -2,7 +2,6 @@
 using System.Diagnostics.CodeAnalysis;
 using sharp_dependency.cli.Logger;
 using sharp_dependency.Parsers;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace sharp_dependency.cli.DependencyCommands;
@@ -57,6 +56,8 @@ internal sealed class UpdateLocalDependencyCommand : LocalDependencyCommandBase<
 
             var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent, settings.IncludePrerelease, settings.VersionLock));
 
+            if(updatedProject.UpdatedDependencies.Count == 0) continue;
+            
             if (!settings.DryRun && updatedProject.UpdatedContent is not null)
             {
                 await File.WriteAllTextAsync(projectPath, updatedProject.UpdatedContent);
@@ -64,18 +65,5 @@ internal sealed class UpdateLocalDependencyCommand : LocalDependencyCommandBase<
         }
 
         return 0;
-    }
-
-    public override ValidationResult Validate(CommandContext context, Settings settings)
-    {
-        if (!string.IsNullOrWhiteSpace(settings.Path))
-        {
-            if (!settings.Path.EndsWith(".sln", StringComparison.InvariantCultureIgnoreCase) && !settings.Path.EndsWith(".csproj", StringComparison.InvariantCultureIgnoreCase))
-            {
-                return ValidationResult.Error($"Setting {nameof(settings.Path)} must be either solution (sln) or project (csproj) file.");
-            }
-        }
-        
-        return ValidationResult.Success();
     }
 }

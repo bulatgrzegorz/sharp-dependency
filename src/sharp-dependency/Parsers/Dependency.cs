@@ -14,7 +14,29 @@ public class Dependency
         UpdateVersionMethod = updateVersionMethod;
         CurrentNugetVersion = NuGetVersion.Parse(CurrentVersion);
     }
+    
+    public bool UpdateVersionIfPossible(IReadOnlyCollection<NuGetVersion> allVersions, VersionRange versionRange, [NotNullWhen(true)] out NuGetVersion? newVersion)
+    {
+        newVersion = null;
 
+        var versionToUpdate = versionRange.FindBestMatch(allVersions);
+        if (versionToUpdate is null)
+        {
+            return false;
+        }
+
+        //if current version satisfies range, and is better then best match (algorithm favor lower versions for example) we will not update it
+        if (versionRange.Satisfies(CurrentNugetVersion) && !versionRange.IsBetter(CurrentNugetVersion, versionToUpdate))
+        {
+            return false;
+        }
+
+        newVersion = versionToUpdate;
+        UpdateVersionMethod(versionToUpdate.ToNormalizedString());
+
+        return true;
+    }
+    
     public bool UpdateVersionIfPossible(IReadOnlyCollection<NuGetVersion> allVersions, bool includePrerelease, VersionLock versionLock, [NotNullWhen(true)] out NuGetVersion? newVersion)
     {
         newVersion = null;
@@ -26,6 +48,7 @@ public class Dependency
             return false;
         }
 
+        //here we do not need to check if current version satisfies range, as it was build based on it
         if (!versionRange.IsBetter(CurrentNugetVersion, versionToUpdate))
         {
             return false;

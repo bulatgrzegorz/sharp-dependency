@@ -6,23 +6,24 @@ using sharp_dependency.Parsers;
 
 namespace sharp_dependency;
 
-public class ProjectUpdater
+//TODO: Should we support prerelease versions here?
+public class ProjectMigrator
 {
     private readonly IPackageMangerService _packageManager;
-    private readonly ConcurrentDictionary<string, Lazy<SelectiveParser>> _selectiveParsers = new();
-    private readonly ConcurrentDictionary<(string framework, string condition), bool> _conditionEvaluationCache = new();
     private readonly IProjectDependencyUpdateLogger _logger;
+    private readonly ConcurrentDictionary<(string framework, string condition), bool> _conditionEvaluationCache = new();
+    private readonly ConcurrentDictionary<string, Lazy<SelectiveParser>> _selectiveParsers = new();
 
-    public ProjectUpdater(IPackageMangerService packageManager, IProjectDependencyUpdateLogger logger)
+    public ProjectMigrator(IPackageMangerService packageManager, IProjectDependencyUpdateLogger logger)
     {
         _packageManager = packageManager;
         _logger = logger;
     }
-    
+
     public async Task<UpdateProjectResult> Update(UpdateProjectRequest request)
     {
         Guard.ThrowIfNullOrWhiteSpace(request.ProjectContent);
-
+        
         await using var directoryBuildPropsParser = request.DirectoryBuildProps is not null ? new ProjectFileParser(request.DirectoryBuildProps) : null;
         var directoryBuildPropsFile = await (directoryBuildPropsParser?.Parse() ?? Task.FromResult((ProjectFile?)default)!);
         await using var projectFileParser = new ProjectFileParser(request.ProjectContent);
@@ -31,39 +32,46 @@ public class ProjectUpdater
         var projectTargetFrameworks = projectFile.TargetFrameworks is { Count: > 0 }
             ? projectFile.TargetFrameworks
             : directoryBuildPropsFile?.TargetFrameworks;
-
+        
         if (projectTargetFrameworks is null or { Count: 0 })
         {
             Log.LogWarn("Could not determine target framework for project: {0}", request.ProjectPath);
             return new UpdateProjectResult();
         }
-
+        
         _logger.LogProject(request.ProjectPath);
-
-        var updatedDependencies = new List<(string name, string currentVersion, string newVersion)>();
+        var migrationActions = new List<MigrationAction>();
         foreach (var dependency in projectFile.Dependencies)
         {
-            //TODO: We should be also consider directoryBuildProps dependencies here as well. Project file can not determine dependency version for example.
-
-            var includePrerelease = false;
-            var allVersions = await GetPackageVersions(projectTargetFrameworks, dependency, includePrerelease);
-            if (allVersions.Count == 0)
+            var migrationInstruction = request.MigrationInstructions.SingleOrDefault(x => x.DependencyName.Equals(dependency.Name, StringComparison.InvariantCultureIgnoreCase));
+            if (migrationInstruction is null)
             {
                 continue;
             }
-
-            if (dependency.UpdateVersionIfPossible(allVersions, request.IncludePrerelease, request.VersionLock, out var newVersion))
+            
+            var allVersions = await GetPackageVersions(projectTargetFrameworks, dependency, false);
+            if (allVersions.Count == 0)
             {
-                updatedDependencies.Add((dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString()));
-                _logger.LogDependency(dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString());   
+                Log.LogWarn("Could not execute instruction update on {0}. Package could not be find.", migrationInstruction.DependencyName);
+                continue;
+            }
+
+            if (dependency.UpdateVersionIfPossible(allVersions, migrationInstruction.VersionRange, out var newVersion))
+            {
+                migrationActions.Add(new MigrationAction(migrationInstruction.DependencyName, dependency.CurrentVersion, newVersion.ToNormalizedString()));
+                _logger.LogDependency(dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString());
+            }
+            else
+            {
+                Log.LogWarn("Could not execute update on {0}. Package with current version {1} was not updated.", migrationInstruction.DependencyName, dependency.CurrentVersion);
             }
         }
-
+        
         var updatedProjectContent = await projectFileParser.Generate();
         _logger.Flush();
-        return new UpdateProjectResult(updatedProjectContent, updatedDependencies);
+        return new UpdateProjectResult(updatedProjectContent, migrationActions);
     }
-
+    
     private async Task<IReadOnlyCollection<NuGetVersion>> GetPackageVersions(IReadOnlyCollection<string> projectTargetFrameworks, Dependency dependency, bool includePrerelease)
     {
         if (dependency.Conditions.Length <= 0)
@@ -97,7 +105,11 @@ public class ProjectUpdater
             return parser.Value.EvaluateSelective(key.condition);
         });
     }
-
-    public readonly record struct UpdateProjectRequest(string ProjectPath, string ProjectContent, string? DirectoryBuildProps, bool IncludePrerelease, VersionLock VersionLock);
-    public readonly record struct UpdateProjectResult(string? UpdatedContent, List<(string name, string currentVersion, string newVersion)> UpdatedDependencies);
+    
+    
+    public record MigrationInstruction(string DependencyName, VersionRange VersionRange);
+    public record MigrationAction(string DependencyName, string CurrentVersion, string NewVersion);
+    
+    public readonly record struct UpdateProjectRequest(string ProjectPath, string ProjectContent, string? DirectoryBuildProps, IEnumerable<MigrationInstruction> MigrationInstructions);
+    public readonly record struct UpdateProjectResult(string? UpdatedContent, List<MigrationAction> UpdatedDependencies);
 }

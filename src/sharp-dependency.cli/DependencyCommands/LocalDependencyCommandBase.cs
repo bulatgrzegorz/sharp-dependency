@@ -1,4 +1,5 @@
-﻿using sharp_dependency.Parsers;
+﻿using sharp_dependency.Logger;
+using sharp_dependency.Parsers;
 using sharp_dependency.Repositories;
 using Spectre.Console.Cli;
 
@@ -9,6 +10,7 @@ public abstract class LocalDependencyCommandBase<T> : AsyncCommand<T> where T : 
     private bool IsPathSolutionFile(string path) => path.EndsWith(".sln", StringComparison.InvariantCultureIgnoreCase);
     private bool IsPathProjectFile(string path) => path.EndsWith(".csproj", StringComparison.InvariantCultureIgnoreCase);
     
+    //TODO: Tests
     protected (string basePath, IReadOnlyCollection<string> projectPaths, IReadOnlyCollection<string> directoryBuildProps) GetRepositoryFiles(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -63,8 +65,7 @@ public abstract class LocalDependencyCommandBase<T> : AsyncCommand<T> where T : 
         var projectFiles = Directory.GetFiles(directory, "*.csproj");
         if (projectFiles.Length == 0)
         {
-            Console.WriteLine(
-                $"Could not find any project file in current directory ({directory}). Please either change directory or pass specific file (sln/csproj) that should be updated.");
+            Log.LogWarn("Could not find any project file in current directory ({0}). Please either change directory or pass specific file (sln/csproj) that should be updated.", directory);
         }
 
         return projectFiles;
