@@ -10,7 +10,7 @@ Although project was mainly ment as way for personal growth there was also few f
 
 ## Installation
 
-Sharp-dependency is avaiable on nuget: [https://www.nuget.org/packages/sharpoogle/](https://www.nuget.org/packages/sharp-dependency-tool) as dotnet tool.
+Sharp-dependency is avaiable on nuget: [https://www.nuget.org/packages/sharp-dependency-tool/](https://www.nuget.org/packages/sharp-dependency-tool) as dotnet tool.
 You can install it by simply running:
 ```cmd
 dotnet tool install --global sharp-dependency-tool
