@@ -2,6 +2,7 @@
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
+using sharp_dependency.Logger;
 
 namespace sharp_dependency.Parsers;
 
@@ -87,41 +88,41 @@ public class ProjectFileParser : IAsyncDisposable
         var name = element.Attribute("Include")?.Value;
         if (string.IsNullOrEmpty(name))
         {
-            Console.WriteLine("Could not determine name of dependency: {0}", element);
+            Log.LogInfo("Could not determine name of dependency: {0}", element);
 
             return null;
         }
 
-        (string currentVersion, Action<string> updateMethod, Action removeMethod) ParseVersion()
+        (string currentVersion, Action<string> updateMethod) ParseVersion()
         {
             var versionAttribute = element.Attribute("Version");
             if (versionAttribute is not null)
             {
-                return (versionAttribute.Value, version => versionAttribute.Value = version, element.Remove);
+                return (versionAttribute.Value, version => versionAttribute.Value = version);
             }
             
             var versionElement = element.Element("Version");
             if (versionElement is not null)
             {
-                return (versionElement.Value, version => versionElement.Value = version, element.Remove);
+                return (versionElement.Value, version => versionElement.Value = version);
             }
             
             var versionAttributeLower = element.Attribute("version");
             if (versionAttributeLower is not null)
             {
-                return (versionAttributeLower.Value, version => versionAttributeLower.Value = version, element.Remove);
+                return (versionAttributeLower.Value, version => versionAttributeLower.Value = version);
             }
             
             var versionElementLower = element.Element("version");
             if (versionElementLower is not null)
             {
-                return (versionElementLower.Value, version => versionElementLower.Value = version, element.Remove);
+                return (versionElementLower.Value, version => versionElementLower.Value = version);
             }
 
-            return (null, null, null)!;
+            return (null, null)!;
         }
 
-        var (currentVersion, updateVersionMethod, removePackageMethod) = ParseVersion();
+        var (currentVersion, updateVersionMethod) = ParseVersion();
         if (string.IsNullOrEmpty(currentVersion))
         {
             return null;
@@ -131,14 +132,14 @@ public class ProjectFileParser : IAsyncDisposable
 
         if (itemGroupDependency is null && condition is null)
         {
-            return new Dependency(name, currentVersion, Array.Empty<string>(), updateVersionMethod, removePackageMethod);
+            return new Dependency(name, currentVersion, Array.Empty<string>(), updateVersionMethod);
         }
             
         var conditions = itemGroupDependency is not null
             ? (condition is not null ? new[] { itemGroupDependency, condition } : new[] { itemGroupDependency })
             : new[] { condition };
             
-        return new Dependency(name, currentVersion, conditions!, updateVersionMethod, removePackageMethod);
+        return new Dependency(name, currentVersion, conditions!, updateVersionMethod);
     }
     
     public ValueTask DisposeAsync()

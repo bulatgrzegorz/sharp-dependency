@@ -34,7 +34,7 @@ public class ProjectUpdater
 
         if (projectTargetFrameworks is null or { Count: 0 })
         {
-            Console.WriteLine("Could not determine target framework for project: {0}", request.ProjectPath);
+            Log.LogWarn("Could not determine target framework for project: {0}", request.ProjectPath);
             return new UpdateProjectResult();
         }
 

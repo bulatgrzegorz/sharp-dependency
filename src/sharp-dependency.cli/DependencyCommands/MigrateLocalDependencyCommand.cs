@@ -3,14 +3,17 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using NuGet.Versioning;
 using sharp_dependency.cli.Logger;
+using sharp_dependency.Logger;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace sharp_dependency.cli.DependencyCommands;
 
-public class MigrateLocalDependencyCommand : LocalDependencyCommandBase<MigrateLocalDependencyCommand.Settings>
+internal class MigrateLocalDependencyCommand : LocalDependencyCommandBase<MigrateLocalDependencyCommand.Settings>
 {
-    public class Settings : CommandSettings
+    private static readonly JsonSerializerOptions CamelCaseJsonSerializerOptions = new JsonSerializerOptions() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    
+    public sealed class Settings : CommandSettings
     {
         [Description("Path to solution/csproj which dependency should be updated")]
         [CommandArgument(0, "[path]")]
@@ -35,7 +38,6 @@ Version should be passed in range format:
     (1.0, 2.0)    --> 1.0 < x < 2.0
     [[1.0, 2.0]]    --> 1.0 ≤ x ≤ 2.0
 """)]
-        //TODO: Rename to instructions?
         [CommandOption("-p|--update-path")]
         public string? MigrationConfigPath { get; init; }
 
@@ -57,7 +59,7 @@ Version should be passed in range format as explained in update-path parameter.
         var currentConfiguration = await SettingsManager.GetSettings<Configuration>();
         if (currentConfiguration is null)
         {
-            Console.WriteLine("[ERROR]: There is no configuration created yet. Use -h|--help for more info.");
+            Log.LogError("There is no configuration created yet. Use -h|--help for more info.");
             return 1;
         }
 
@@ -74,10 +76,11 @@ Version should be passed in range format as explained in update-path parameter.
             var directoryBuildPropsPath = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(directoryBuildPropsPaths, projectPath, basePath);
             var directoryBuildPropsContent = directoryBuildPropsPath is not null ? await File.ReadAllTextAsync(projectPath) : null;
             var projectContent = await File.ReadAllTextAsync(projectPath);
-
             
             var updatedProject = await projectMigrator.Update(new ProjectMigrator.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent, instructions));
 
+            if(updatedProject.UpdatedDependencies.Count == 0) continue;
+            
             if (!settings.DryRun && updatedProject.UpdatedContent is not null)
             {
                 await File.WriteAllTextAsync(projectPath, updatedProject.UpdatedContent);
@@ -100,9 +103,8 @@ Version should be passed in range format as explained in update-path parameter.
         }
         
         var migrationConfigurationContent = await File.ReadAllTextAsync(settings.MigrationConfigPath!);
-        var migrationConfiguration = JsonSerializer.Deserialize<MigrationConfiguration>(migrationConfigurationContent, new JsonSerializerOptions() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        var migrationConfiguration = JsonSerializer.Deserialize<MigrationConfiguration>(migrationConfigurationContent, CamelCaseJsonSerializerOptions);
         return migrationConfiguration is not { Update.Count: > 0 } ? Array.Empty<ProjectMigrator.MigrationInstruction>() : Convert(migrationConfiguration).ToArray();
-
     }
 
     private ProjectMigrator.MigrationInstruction ConvertUpdateStringToInstruction(string value)
@@ -114,7 +116,7 @@ Version should be passed in range format as explained in update-path parameter.
         }
         catch (Exception)
         {
-            Console.WriteLine("[ERROR]: Could not correctly parse parameter value \"{0}\" to instruction. It should be passed in format: \"package.name:[1.2.0,2.0.0)\"", value);
+            Log.LogError("Could not correctly parse parameter value \"{0}\" to instruction. It should be passed in format: \"package.name:[1.2.0,2.0.0)\"", value);
             throw;
         }
 

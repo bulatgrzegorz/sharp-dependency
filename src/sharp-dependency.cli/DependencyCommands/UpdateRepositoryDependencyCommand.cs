@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using sharp_dependency.cli.Logger;
+using sharp_dependency.Logger;
 using sharp_dependency.Parsers;
 using sharp_dependency.Repositories;
 using sharp_dependency.Repositories.Bitbucket;
@@ -61,7 +62,7 @@ internal sealed class UpdateRepositoryDependencyCommand : RepositoryDependencyCo
         var currentConfiguration = await SettingsManager.GetSettings<Configuration>();
         if (currentConfiguration is null)
         {
-            Console.WriteLine("[ERROR]: There is no configuration created yet. Use -h|--help for more info.");
+            Log.LogError("There is no configuration created yet. Use -h|--help for more info.");
             return 1;
         }
         
@@ -103,6 +104,8 @@ internal sealed class UpdateRepositoryDependencyCommand : RepositoryDependencyCo
             var directoryBuildPropsContent = directoryBuildPropsFile is not null ? await bitbucketManager.GetFileContentRaw(directoryBuildPropsFile) : null;
             var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent, settings.IncludePrerelease, settings.VersionLock));
          
+            if(updatedProject.UpdatedDependencies.Count == 0) continue;
+            
             projectUpdatedDependencies.Add(
                 (new Project()
                 {
@@ -136,7 +139,7 @@ internal sealed class UpdateRepositoryDependencyCommand : RepositoryDependencyCo
         {
             return ValidationResult.Error($"Setting {nameof(settings.Repository)} must have a value.");
         }
-        
+         
         if (string.IsNullOrEmpty(settings.Project) && string.IsNullOrEmpty(settings.Workspace))
         {
             return ValidationResult.Error($"Neither {nameof(settings.Project)} or {nameof(settings.Workspace)} must have a value (depending of bitbucket type you are using).");

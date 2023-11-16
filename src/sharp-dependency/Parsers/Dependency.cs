@@ -6,19 +6,13 @@ namespace sharp_dependency.Parsers;
 //TODO: Some configuration file, where it will be possible to configure which dependencies and how should be updated
 public class Dependency
 {
-    public Dependency(string name, string currentVersion, string[] conditions, Action<string> updateVersionMethod, Action removePackageMethod)
+    public Dependency(string name, string currentVersion, string[] conditions, Action<string> updateVersionMethod)
     {
         Name = name;
         CurrentVersion = currentVersion;
         Conditions = conditions;
         UpdateVersionMethod = updateVersionMethod;
-        RemovePackageMethod = removePackageMethod;
         CurrentNugetVersion = NuGetVersion.Parse(CurrentVersion);
-    }
-
-    public void RemoveDependency()
-    {
-        RemovePackageMethod();
     }
     
     public bool UpdateVersionIfPossible(IReadOnlyCollection<NuGetVersion> allVersions, VersionRange versionRange, [NotNullWhen(true)] out NuGetVersion? newVersion)
@@ -95,6 +89,5 @@ public class Dependency
     public string CurrentVersion { get; }
     public string[] Conditions { get; }
     private Action<string> UpdateVersionMethod { get; }
-    private Action RemovePackageMethod { get; }
     private NuGetVersion CurrentNugetVersion { get; }
 }

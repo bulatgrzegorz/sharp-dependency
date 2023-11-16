@@ -35,7 +35,7 @@ public class ProjectMigrator
         
         if (projectTargetFrameworks is null or { Count: 0 })
         {
-            Console.WriteLine("Could not determine target framework for project: {0}", request.ProjectPath);
+            Log.LogWarn("Could not determine target framework for project: {0}", request.ProjectPath);
             return new UpdateProjectResult();
         }
         
@@ -52,7 +52,7 @@ public class ProjectMigrator
             var allVersions = await GetPackageVersions(projectTargetFrameworks, dependency, false);
             if (allVersions.Count == 0)
             {
-                Console.WriteLine("Could not execute instruction update on {0}. Package could not be find.", migrationInstruction.DependencyName);
+                Log.LogWarn("Could not execute instruction update on {0}. Package could not be find.", migrationInstruction.DependencyName);
                 continue;
             }
 
@@ -63,7 +63,7 @@ public class ProjectMigrator
             }
             else
             {
-                Console.WriteLine("Could not execute update on {0}. Package with current version {1} was not updated.", migrationInstruction.DependencyName, dependency.CurrentVersion);
+                Log.LogWarn("Could not execute update on {0}. Package with current version {1} was not updated.", migrationInstruction.DependencyName, dependency.CurrentVersion);
             }
         }
         
@@ -105,6 +105,7 @@ public class ProjectMigrator
             return parser.Value.EvaluateSelective(key.condition);
         });
     }
+    
     
     public record MigrationInstruction(string DependencyName, VersionRange VersionRange);
     public record MigrationAction(string DependencyName, string CurrentVersion, string NewVersion);

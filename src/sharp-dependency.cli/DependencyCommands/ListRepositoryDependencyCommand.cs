@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using sharp_dependency.cli.Logger;
+using sharp_dependency.Logger;
 using sharp_dependency.Parsers;
 using sharp_dependency.Repositories;
 using sharp_dependency.Repositories.Bitbucket;
@@ -37,20 +38,20 @@ public class ListRepositoryDependencyCommand : RepositoryDependencyCommandBase<L
         var currentConfiguration = await SettingsManager.GetSettings<Configuration>();
         if (currentConfiguration is null)
         {
-            Console.WriteLine("[ERROR]: There is no configuration created yet. Use -h|--help for more info.");
+            Log.LogError("There is no configuration created yet. Use -h|--help for more info.");
             return 1;
         }
         
         var repositoryContext = settings.RepositorySourceName ?? currentConfiguration.CurrentConfiguration?.RepositoryContext;
         if (string.IsNullOrEmpty(repositoryContext))
         {
-            Console.WriteLine("[ERROR]: Either repository source name parameter should be used or repository source name as current context.");
+            Log.LogError("Either repository source name parameter should be used or repository source name as current context.");
             return 1;
         }
         
         if (!currentConfiguration.Bitbuckets.TryGetValue(repositoryContext, out var bitbucket))
         {
-            Console.WriteLine("[ERROR]: There is no bitbucket repository configuration for repository source name {0}.", repositoryContext);
+            Log.LogError("There is no bitbucket repository configuration for repository source name {0}.", repositoryContext);
             return 1;
         }
         

@@ -2,7 +2,6 @@
 using System.Diagnostics.CodeAnalysis;
 using sharp_dependency.cli.Logger;
 using sharp_dependency.Parsers;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace sharp_dependency.cli.DependencyCommands;
@@ -57,6 +56,8 @@ internal sealed class UpdateLocalDependencyCommand : LocalDependencyCommandBase<
 
             var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent, settings.IncludePrerelease, settings.VersionLock));
 
+            if(updatedProject.UpdatedDependencies.Count == 0) continue;
+            
             if (!settings.DryRun && updatedProject.UpdatedContent is not null)
             {
                 await File.WriteAllTextAsync(projectPath, updatedProject.UpdatedContent);
