@@ -1,12 +1,11 @@
 ﻿using System.ComponentModel;
 using sharp_dependency.cli.Logger;
 using sharp_dependency.Parsers;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace sharp_dependency.cli.DependencyCommands;
 
-public class ListLocalDependencyCommand : LocalDependencyCommandBase<ListLocalDependencyCommand.Settings>
+internal sealed class ListLocalDependencyCommand : LocalDependencyCommandBase<ListLocalDependencyCommand.Settings>
 {
     // ReSharper disable once ClassNeverInstantiated.Global
     public class Settings : CommandSettings

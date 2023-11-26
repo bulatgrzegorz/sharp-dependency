@@ -1,5 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using NuGet.Configuration;
+using sharp_dependency.Logger;
 
 namespace sharp_dependency.cli;
 
@@ -14,20 +15,20 @@ public sealed record Configuration
     {
         if (Bitbuckets is { Count: 0 })
         {
-            Console.WriteLine("[ERROR]: Given bitbucket configuration has no repository sources.");
+            Log.LogError("Given bitbucket configuration has no repository sources.");
             return null;
         }
 
         var repositoryContext = repositorySourceName ?? CurrentConfiguration?.RepositoryContext;
         if (string.IsNullOrEmpty(repositoryContext))
         {
-            Console.WriteLine("[ERROR]: Either repository source name parameter should be used or repository source name as current context.");
+            Log.LogError("Either repository source name parameter should be used or repository source name as current context.");
             return null;
         }
 
         if (!Bitbuckets.TryGetValue(repositoryContext, out var bitbucket))
         {
-            Console.WriteLine("[ERROR]: There is no bitbucket repository configuration for repository source name {0}.", repositoryContext);
+            Log.LogError("There is no bitbucket repository configuration for repository source name {0}.", repositoryContext);
             return null;
         }
 
@@ -45,7 +46,7 @@ public sealed record Configuration
         var packageSources = packageSourceProvider.LoadPackageSources().ToList();
         if (packageSources is { Count: 0 })
         {
-            Console.WriteLine("[WARNING]: Given nuget configuration has no package sources. We are going to use default official nuget.");
+            Log.LogWarn("Given nuget configuration has no package sources. We are going to use default official nuget.");
             return new NugetPackageSourceMangerChain(new NugetPackageSourceManger());
         }
 

@@ -5,10 +5,21 @@ using Spectre.Console.Cli;
 
 namespace sharp_dependency.cli.DependencyCommands;
 
-public abstract class LocalDependencyCommandBase<T> : AsyncCommand<T> where T : CommandSettings
+internal abstract class LocalDependencyCommandBase<T> : AsyncCommand<T> where T : CommandSettings
 {
     private bool IsPathSolutionFile(string path) => path.EndsWith(".sln", StringComparison.InvariantCultureIgnoreCase);
     private bool IsPathProjectFile(string path) => path.EndsWith(".csproj", StringComparison.InvariantCultureIgnoreCase);
+    
+    protected async Task<string> GetProjectContent(string projectPath)
+    {
+        return await File.ReadAllTextAsync(projectPath);
+    }
+    
+    protected async Task<string?> GetDirectoryBuildPropsContent(IReadOnlyCollection<string> directoryBuildPropsPaths, string projectPath, string basePath)
+    {
+        var directoryBuildPropsPath = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(directoryBuildPropsPaths, projectPath, basePath);
+        return directoryBuildPropsPath is not null ? await File.ReadAllTextAsync(directoryBuildPropsPath) : null;
+    }
     
     //TODO: Tests
     protected (string basePath, IReadOnlyCollection<string> projectPaths, IReadOnlyCollection<string> directoryBuildProps) GetRepositoryFiles(string? path)

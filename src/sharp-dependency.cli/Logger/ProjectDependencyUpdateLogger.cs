@@ -35,7 +35,7 @@ public class ProjectDependencyUpdateLogger : IProjectDependencyUpdateLogger
     {
         if (_tree is not null && _table is {Rows.Count: > 0})
         {
-            AnsiConsole.Write(_tree);    
+            AnsiConsole.Write(_tree);
         }
     }
 }

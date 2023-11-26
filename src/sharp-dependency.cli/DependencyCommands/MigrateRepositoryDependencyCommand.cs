@@ -3,20 +3,18 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using NuGet.Versioning;
 using sharp_dependency.cli.Logger;
+using sharp_dependency.cli.Repositories;
 using sharp_dependency.Logger;
 using sharp_dependency.Repositories;
-using sharp_dependency.Repositories.Bitbucket;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using AppPasswordCredentials = sharp_dependency.cli.Configuration.Bitbucket.BitbucketCredentials.AppPasswordBitbucketCredentials;
-using AccessTokenCredentials = sharp_dependency.cli.Configuration.Bitbucket.BitbucketCredentials.AccessTokenBitbucketCredentials;
-using Dependency = sharp_dependency.Repositories.Dependency;
 
 namespace sharp_dependency.cli.DependencyCommands;
 
+// ReSharper disable ClassNeverInstantiated.Global
 internal sealed class MigrateRepositoryDependencyCommand : RepositoryDependencyCommandBase<MigrateRepositoryDependencyCommand.Settings>
 {
-    private static readonly JsonSerializerOptions CamelCaseJsonSerializerOptions = new JsonSerializerOptions() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly JsonSerializerOptions CamelCaseJsonSerializerOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     
     public sealed class Settings : CommandSettings
     {
@@ -26,7 +24,7 @@ internal sealed class MigrateRepositoryDependencyCommand : RepositoryDependencyC
         
         [Description("Name of repository that we should update dependencies in.")]
         [CommandOption("-r|--repository")]
-        public string Repository { get; init; } = null!;
+        public string? Repository { get; init; }
 
         [Description("Name of a project within which we should update repositorty. Value is required for Server Bitbucket source type.")]
         [CommandOption("-p|--project")]
@@ -95,67 +93,77 @@ Version should be passed in range format as explained in update-path parameter.
             return 1;
         }
         
-        var instructions = await GetMigrationInstructions(settings);
-                var bitbucketAddress = bitbucket.ApiAddress;
-        var workspace = settings.Workspace;
-        var project = settings.Project;
-        var repository = settings.Repository;
-        IRepositoryManger bitbucketManager = (bitbucket, bitbucket.Credentials) switch
+        if (settings.Repository is null)
         {
-            (Configuration.Bitbucket.CloudBitbucket, null) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace!, repository),
-            (Configuration.Bitbucket.ServerBitbucket, null) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!),
-            (Configuration.Bitbucket.CloudBitbucket, AppPasswordCredentials c) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace!, repository, (c.UserName, c.AppPassword)),
-            (Configuration.Bitbucket.CloudBitbucket, AccessTokenCredentials c) => new BitbucketCloudRepositoryManager(bitbucketAddress, workspace!, repository, c.Token),
-            (Configuration.Bitbucket.ServerBitbucket, AppPasswordCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!, (c.UserName, c.AppPassword)),
-            (Configuration.Bitbucket.ServerBitbucket, AccessTokenCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!, c.Token),
-            _ => throw new ArgumentOutOfRangeException()
-        };
+            var bitbucketProjectManager = BitbucketManagerFactory.CreateProjectManager(bitbucket.ApiAddress, settings.Workspace, settings.Project, bitbucket);
 
+            var repositories = await bitbucketProjectManager.GetRepositories();
+
+            foreach (var repository in repositories)
+            {
+                await MigrateRepository(settings, repository, bitbucket, nugetManager);
+            }
+        }
+        else
+        {
+            await MigrateRepository(settings, settings.Repository, bitbucket, nugetManager);
+        }
+
+        return 0;
+    }
+
+    private async Task MigrateRepository(Settings settings, string repository, Configuration.Bitbucket bitbucket, NugetPackageSourceMangerChain nugetManager)
+    {
+        var bitbucketManager = BitbucketManagerFactory.CreateRepositoryManager(bitbucket.ApiAddress, settings.Workspace, settings.Project, repository, bitbucket);
+
+        try
+        {
+            await MigrateRepository(settings, bitbucketManager, nugetManager);
+        }
+        catch (Exception e)
+        {
+            Log.LogError("Occured while migrating repository: {0} in project: {1}", repository, (settings.Project ?? settings.Workspace)!);
+            Log.LogDebug("Error: {0}", e.Message);
+        }
+    }
+
+    private async Task MigrateRepository(Settings settings, IRepositoryManger bitbucketManager, NugetPackageSourceMangerChain nugetManager)
+    {
+        var instructions = await GetMigrationInstructions(settings);
+        
         var repositoryPaths = (await bitbucketManager.GetRepositoryFilePaths()).ToList();
 
         var projectMigrator = new ProjectMigrator(nugetManager, new ProjectDependencyUpdateLogger());
-        
+
         var projectPaths = await GetProjectPaths(repositoryPaths, bitbucketManager);
 
         //TODO: We should check if anything was actually updated in project before
         //TODO: Refactor loggers/response from project updater
-        var projectUpdatedDependencies = new List<(Project project, string updatedContent)>(projectPaths.Count);
+        var updatedProjects = new List<UpdatedProject>(projectPaths.Count);
         foreach (var projectPath in projectPaths)
         {
             var directoryBuildPropsFile = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(repositoryPaths, projectPath);
             var projectContent = await bitbucketManager.GetFileContentRaw(projectPath);
             var directoryBuildPropsContent = directoryBuildPropsFile is not null ? await bitbucketManager.GetFileContentRaw(directoryBuildPropsFile) : null;
             var migratedProject = await projectMigrator.Update(new ProjectMigrator.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent, instructions));
-         
-            if(migratedProject.UpdatedDependencies.Count == 0) continue;
-            
-            projectUpdatedDependencies.Add(
-                (new Project()
-                {
-                    Name = projectPath, 
-                    
-                    UpdatedDependencies = migratedProject.UpdatedDependencies.Select(x => new Dependency(){Name = x.DependencyName, CurrentVersion = x.CurrentVersion, NewVersion = x.NewVersion}).ToList()
-                }, migratedProject.UpdatedContent!));
+
+            if (migratedProject?.UpdatedDependencies is not {Count: > 0}) continue;
+
+            updatedProjects.Add(migratedProject);
         }
 
-        if (settings.DryRun)
+        if (settings.DryRun || updatedProjects.Count == 0)
         {
-            return 0;
+            return;
         }
 
         var branch = settings.BranchName ?? "sharp-dependency";
-        await bitbucketManager.CreateCommit(branch, settings.CommitMessage ?? "update dependencies", projectUpdatedDependencies.Select(x => (x.project.Name, x.updatedContent)).ToList());
+        var commitMessage = settings.CommitMessage ?? "update dependencies";
+        var pullRequestName = $"[{branch}] pull request";
         
-        var description = new Description()
-        {
-            UpdatedProjects = projectUpdatedDependencies.Select(x => x.project).ToList()
-        };
-        
-        await bitbucketManager.CreatePullRequest(new CreatePullRequest(){Name = $"[{branch}] pull request", SourceBranch = branch, Description = description});
-        
-        return 0;
+        await bitbucketManager.CreatePullRequest(pullRequestName, branch, commitMessage, updatedProjects);
     }
-    
+
     private async Task<ProjectMigrator.MigrationInstruction[]> GetMigrationInstructions(Settings settings)
     {
         if (string.IsNullOrEmpty(settings.MigrationConfigPath))
@@ -186,7 +194,6 @@ Version should be passed in range format as explained in update-path parameter.
             Log.LogError("Could not correctly parse parameter value \"{0}\" to instruction. It should be passed in format: \"package.name:[1.2.0,2.0.0)\"", value);
             throw;
         }
-
     }
     
     private IEnumerable<ProjectMigrator.MigrationInstruction> Convert(MigrationConfiguration configuration)
@@ -210,11 +217,6 @@ Version should be passed in range format as explained in update-path parameter.
     
     public override ValidationResult Validate(CommandContext context, Settings settings)
     {
-        if (string.IsNullOrEmpty(settings.Repository))
-        {
-            return ValidationResult.Error($"Setting {nameof(settings.Repository)} must have a value.");
-        }
-        
         if (string.IsNullOrEmpty(settings.Project) && string.IsNullOrEmpty(settings.Workspace))
         {
             return ValidationResult.Error($"Neither {nameof(settings.Project)} or {nameof(settings.Workspace)} must have a value (depending of bitbucket type you are using).");

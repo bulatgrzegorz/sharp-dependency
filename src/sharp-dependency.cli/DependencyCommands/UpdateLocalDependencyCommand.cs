@@ -50,15 +50,14 @@ internal sealed class UpdateLocalDependencyCommand : LocalDependencyCommandBase<
 
         foreach (var projectPath in projectPaths)
         {
-            var directoryBuildPropsPath = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(directoryBuildPropsPaths, projectPath, basePath);
-            var directoryBuildPropsContent = directoryBuildPropsPath is not null ? await File.ReadAllTextAsync(projectPath) : null;
-            var projectContent = await File.ReadAllTextAsync(projectPath);
+            var directoryBuildPropsContent = await GetDirectoryBuildPropsContent(directoryBuildPropsPaths, projectPath, basePath);
+            var projectContent = await GetProjectContent(projectPath);
 
             var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent, settings.IncludePrerelease, settings.VersionLock));
 
-            if(updatedProject.UpdatedDependencies.Count == 0) continue;
-            
-            if (!settings.DryRun && updatedProject.UpdatedContent is not null)
+            if (updatedProject?.UpdatedDependencies is not {Count: > 0}) continue;
+
+            if (!settings.DryRun && updatedProject?.UpdatedContent is not null)
             {
                 await File.WriteAllTextAsync(projectPath, updatedProject.UpdatedContent);
             }

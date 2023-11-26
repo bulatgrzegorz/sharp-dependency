@@ -3,6 +3,8 @@ using NuGet.Versioning;
 using SelectiveConditionEvaluator;
 using sharp_dependency.Logger;
 using sharp_dependency.Parsers;
+using sharp_dependency.Repositories;
+using Dependency = sharp_dependency.Parsers.Dependency;
 
 namespace sharp_dependency;
 
@@ -19,7 +21,7 @@ public class ProjectUpdater
         _logger = logger;
     }
     
-    public async Task<UpdateProjectResult> Update(UpdateProjectRequest request)
+    public async Task<UpdatedProject?> Update(UpdateProjectRequest request)
     {
         Guard.ThrowIfNullOrWhiteSpace(request.ProjectContent);
 
@@ -35,12 +37,12 @@ public class ProjectUpdater
         if (projectTargetFrameworks is null or { Count: 0 })
         {
             Log.LogWarn("Could not determine target framework for project: {0}", request.ProjectPath);
-            return new UpdateProjectResult();
+            return null;
         }
 
         _logger.LogProject(request.ProjectPath);
 
-        var updatedDependencies = new List<(string name, string currentVersion, string newVersion)>();
+        var updatedDependencies = new List<sharp_dependency.Repositories.Dependency>();
         foreach (var dependency in projectFile.Dependencies)
         {
             //TODO: We should be also consider directoryBuildProps dependencies here as well. Project file can not determine dependency version for example.
@@ -54,14 +56,14 @@ public class ProjectUpdater
 
             if (dependency.UpdateVersionIfPossible(allVersions, request.IncludePrerelease, request.VersionLock, out var newVersion))
             {
-                updatedDependencies.Add((dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString()));
+                updatedDependencies.Add(new sharp_dependency.Repositories.Dependency(dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString()));
                 _logger.LogDependency(dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString());   
             }
         }
 
         var updatedProjectContent = await projectFileParser.Generate();
         _logger.Flush();
-        return new UpdateProjectResult(updatedProjectContent, updatedDependencies);
+        return new UpdatedProject(request.ProjectPath, updatedProjectContent, updatedDependencies);
     }
 
     private async Task<IReadOnlyCollection<NuGetVersion>> GetPackageVersions(IReadOnlyCollection<string> projectTargetFrameworks, Dependency dependency, bool includePrerelease)
@@ -99,5 +101,4 @@ public class ProjectUpdater
     }
 
     public readonly record struct UpdateProjectRequest(string ProjectPath, string ProjectContent, string? DirectoryBuildProps, bool IncludePrerelease, VersionLock VersionLock);
-    public readonly record struct UpdateProjectResult(string? UpdatedContent, List<(string name, string currentVersion, string newVersion)> UpdatedDependencies);
 }

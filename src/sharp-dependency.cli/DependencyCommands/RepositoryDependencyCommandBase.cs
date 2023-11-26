@@ -6,6 +6,17 @@ namespace sharp_dependency.cli.DependencyCommands;
 
 public abstract class RepositoryDependencyCommandBase<T> : AsyncCommand<T> where T : CommandSettings
 {
+    protected async Task<string> GetProjectContent(IRepositoryManger repositoryManger, string projectPath)
+    {
+        return await repositoryManger.GetFileContentRaw(projectPath);
+    }
+    
+    protected async Task<string?> GetDirectoryBuildPropsContent(IRepositoryManger repositoryManger, IReadOnlyCollection<string> repositoryPaths, string projectPath)
+    {
+        var directoryBuildPropsFile = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(repositoryPaths, projectPath);
+        return directoryBuildPropsFile is not null ? await repositoryManger.GetFileContentRaw(directoryBuildPropsFile) : null;
+    }
+    
     protected async Task<IReadOnlyCollection<string>> GetProjectPaths(IReadOnlyCollection<string> filePaths, IRepositoryManger bitbucketServerManager)
     {
         var solutionsPath = FindSolutionPath(filePaths);

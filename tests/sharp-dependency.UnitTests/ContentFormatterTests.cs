@@ -15,7 +15,7 @@ public class ContentFormatterTests
     [Fact]
     public void FormatPullRequestDescription_ReturnEmptyString_WhenNoProjectWithDependenciesUpdated()
     {
-        var result = ContentFormatter.FormatPullRequestDescription(new Description(){UpdatedProjects = new List<Project>()});
+        var result = ContentFormatter.FormatPullRequestDescription(new Description(){UpdatedProjects = new List<UpdatedProject>()});
 
         Assert.Empty(result);
     }
@@ -23,7 +23,7 @@ public class ContentFormatterTests
     [Fact]
     public void FormatPullRequestDescription_ReturnProjectWithDependency()
     {
-        var result = ContentFormatter.FormatPullRequestDescription(new Description(){UpdatedProjects = new List<Project>()
+        var result = ContentFormatter.FormatPullRequestDescription(new Description(){UpdatedProjects = new List<UpdatedProject>()
         {
             new(){Name = "ExampleProject/x.csproj", UpdatedDependencies = new List<Dependency>(){new(){Name = "depName", CurrentVersion = "1.0.0", NewVersion = "1.0.1"}}},
         }});
@@ -39,7 +39,7 @@ public class ContentFormatterTests
     [Fact]
     public void FormatPullRequestDescription_ReturnMultipleProjectWithDependencies()
     {
-        var result = ContentFormatter.FormatPullRequestDescription(new Description(){UpdatedProjects = new List<Project>()
+        var result = ContentFormatter.FormatPullRequestDescription(new Description(){UpdatedProjects = new List<UpdatedProject>()
         {
             new()
             {

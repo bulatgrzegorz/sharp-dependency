@@ -86,7 +86,7 @@ public class ProjectUpdaterTests
         var directoryBuildPropsContent = GetProjectContent(directoryBuildProps);
         var updateProjectResult = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectName, projectContent, directoryBuildPropsContent, false, VersionLock.None));
 
-        var efCore = await GetProjectDependency(updateProjectResult.UpdatedContent!, package);
+        var efCore = await GetProjectDependency(updateProjectResult!.UpdatedContent!, package);
 
         Assert.Equal(expectedVersion, efCore.CurrentVersion);
     }
@@ -102,7 +102,7 @@ public class ProjectUpdaterTests
         var projectContent = GetProjectContent(projectName);
         var updateProjectResult = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectName, projectContent, default, includePrerelease, versionLock));
 
-        var efCore = await GetProjectDependency(updateProjectResult.UpdatedContent!, package);
+        var efCore = await GetProjectDependency(updateProjectResult!.UpdatedContent!, package);
 
         Assert.Equal(expectedVersion, efCore.CurrentVersion);
     }

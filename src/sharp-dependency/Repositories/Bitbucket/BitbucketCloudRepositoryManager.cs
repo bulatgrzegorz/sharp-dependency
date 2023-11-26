@@ -113,14 +113,14 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
         return await GetFileContentRaw(filePath);
     }
 
-    public async Task<Commit> CreateCommit(string branch, string commitMessage, List<(string filePath, string content)> files)
+    public async Task<Commit> CreateCommit(string branch, string commitMessage, List<UpdatedProject> files)
     {
         var form = new MultipartFormDataContent();
         form.Add(new StringContent(commitMessage), "message");
         form.Add(new StringContent(branch), "branch");
-        foreach (var (filePath, content) in files)
+        foreach (var updatedProject in files)
         {
-            form.Add(new StringContent(content), filePath);
+            form.Add(new StringContent(updatedProject.UpdatedContent), updatedProject.Name);
         }
         
         using var response = await _httpClient.PostAsync("src", form);
@@ -207,6 +207,19 @@ public class BitbucketCloudRepositoryManager: IRepositoryManger
     public Task<PullRequest> CreatePullRequest(CreatePullRequest request)
     {
         return CreatePullRequest(request.SourceBranch, request.Name, ContentFormatter.FormatPullRequestDescription(request.Description));
+    }
+
+    public async Task<PullRequest> CreatePullRequest(string name, string branch, string commitMessage, List<UpdatedProject> updatedProjects)
+    {
+        await CreateCommit(branch, commitMessage, updatedProjects);
+        
+        var description = new Description()
+        {
+            UpdatedProjects = updatedProjects
+        };
+
+        //TODO: Refactor pull request name
+        return await CreatePullRequest(new CreatePullRequest() { Name = name, SourceBranch = branch, Description = description });
     }
 
     private static async Task<GetSrcResponse?> GetSrc(HttpClient httpClient, string url)

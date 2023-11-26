@@ -13,6 +13,6 @@ public class FileContent
         return new FileContent(File.ReadAllLines(path), path);
     }
     
-    public IEnumerable<string> Lines { get; private set; }
-    public string Path { get; private set; }
+    public IEnumerable<string> Lines { get; }
+    public string Path { get; }
 }

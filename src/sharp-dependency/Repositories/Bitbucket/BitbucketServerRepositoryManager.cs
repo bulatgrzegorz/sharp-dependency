@@ -1,9 +1,9 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using Microsoft.Extensions.Caching.Memory;
+using sharp_dependency.Logger;
 
 namespace sharp_dependency.Repositories.Bitbucket;
 
@@ -52,9 +52,22 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
 
     public async Task<IEnumerable<string>> GetRepositoryFilePaths()
     {
+        Log.LogDebug("Getting repository paths for {0} in project {1}", _repositoryName, _projectName);
         //TODO: We should make those as long as there are still files to be collected
-        var response = await _apiHttpClient.GetFromJsonAsync<GetRepositoryFilePathsResponse>($"files?limit={PathsLimit}");
-        return response?.Values ?? Enumerable.Empty<string>();
+        var response = await _apiHttpClient.GetAsync($"files?limit={PathsLimit}");
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            //TODO: Check why this is happening, error:
+            // "message": "refs/heads/master is set as the default branch, but this branch does not exist",
+            // "exceptionName": "com.atlassian.bitbucket.repository.NoDefaultBranchException"
+            return ArraySegment<string>.Empty;
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var content = await response.Content.ReadFromJsonAsync<GetRepositoryFilePathsResponse>();
+        
+        return content?.Values ?? Enumerable.Empty<string>();
     }
 
     public async Task<string> GetFileContentRaw(string filePath)
@@ -86,7 +99,7 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
         return await response.Content.ReadFromJsonAsync<CreateCommitResponse>();
     }
     
-    public async Task<Commit> CreateCommit(string branch, string commitMessage, List<(string filePath, string content)> files)
+    public async Task<Commit> CreateCommit(string branch, string commitMessage, List<UpdatedProject> files)
     {
         string commitId; 
         var branchToCommitOn = await GetBranch(branch);
@@ -102,15 +115,15 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
             commitId = branchToCommitOn.LatestCommit;
         }
 
-        foreach (var (filePath, content) in files)
+        foreach (var updatedProject in files)
         {
-            var createCommitResponse = await CreateCommit(branch, commitId, commitMessage, content, filePath);
+            var createCommitResponse = await CreateCommit(branch, commitId, commitMessage, updatedProject.UpdatedContent, updatedProject.Name);
             if (createCommitResponse is null)
             {
-                throw CreateException($"Could not create commit on {branch} with file {filePath}", null);
+                throw CreateException($"Could not create commit on {branch} with file {updatedProject.Name}", null);
             }
 
-            Console.WriteLine($"Change ({filePath}) committed on ({createCommitResponse.Id}).");
+            Console.WriteLine($"Change ({updatedProject.Name}) committed on ({createCommitResponse.Id}).");
             commitId = createCommitResponse.Id;
         }
 
@@ -207,6 +220,19 @@ public class BitbucketServerRepositoryManager : IRepositoryManger
     {
         var defaultBranch = await GetDefaultBranch();
         return await CreatePullRequest(request.SourceBranch, defaultBranch.Id, request.Name, ContentFormatter.FormatPullRequestDescription(request.Description));
+    }
+
+    public async Task<PullRequest> CreatePullRequest(string name, string branch, string commitMessage, List<UpdatedProject> updatedProjects)
+    {
+        await CreateCommit(branch, commitMessage, updatedProjects);
+        
+        var description = new Description()
+        {
+            UpdatedProjects = updatedProjects
+        };
+
+        //TODO: Refactor pull request name
+        return await CreatePullRequest(new CreatePullRequest() { Name = name, SourceBranch = branch, Description = description });
     }
 
     private async Task<GetRepositoryResponse> GetRepository()

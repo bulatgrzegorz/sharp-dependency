@@ -2,7 +2,7 @@
 
 namespace sharp_dependency.Repositories;
 
-public class ContentFormatter
+public abstract class ContentFormatter
 {
     public static string FormatPullRequestDescription(Description description)
     {

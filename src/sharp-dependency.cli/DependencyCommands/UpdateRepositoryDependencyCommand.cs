@@ -1,16 +1,11 @@
 ﻿using System.ComponentModel;
 using sharp_dependency.cli.Logger;
+using sharp_dependency.cli.Repositories;
 using sharp_dependency.Logger;
 using sharp_dependency.Parsers;
 using sharp_dependency.Repositories;
-using sharp_dependency.Repositories.Bitbucket;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using CloudBitbucket = sharp_dependency.cli.Configuration.Bitbucket.CloudBitbucket;
-using ServerBitbucket = sharp_dependency.cli.Configuration.Bitbucket.ServerBitbucket;
-using AppPasswordCredentials = sharp_dependency.cli.Configuration.Bitbucket.BitbucketCredentials.AppPasswordBitbucketCredentials;
-using AccessTokenCredentials = sharp_dependency.cli.Configuration.Bitbucket.BitbucketCredentials.AccessTokenBitbucketCredentials;
-using Dependency = sharp_dependency.Repositories.Dependency;
 
 namespace sharp_dependency.cli.DependencyCommands;
 
@@ -73,20 +68,7 @@ internal sealed class UpdateRepositoryDependencyCommand : RepositoryDependencyCo
             return 1;
         }
 
-        var bitbucketAddress = bitbucket.ApiAddress;
-        var workspace = settings.Workspace;
-        var project = settings.Project;
-        var repository = settings.Repository;
-        IRepositoryManger bitbucketManager = (bitbucket, bitbucket.Credentials) switch
-        {
-            (CloudBitbucket, null) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace!, repository),
-            (ServerBitbucket, null) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!),
-            (CloudBitbucket, AppPasswordCredentials c) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace!, repository, (c.UserName, c.AppPassword)),
-            (CloudBitbucket, AccessTokenCredentials c) => new BitbucketCloudRepositoryManager(bitbucketAddress, workspace!, repository, c.Token),
-            (ServerBitbucket, AppPasswordCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!, (c.UserName, c.AppPassword)),
-            (ServerBitbucket, AccessTokenCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!, c.Token),
-            _ => throw new ArgumentOutOfRangeException()
-        };
+        var bitbucketManager = BitbucketManagerFactory.CreateRepositoryManager(bitbucket.ApiAddress, settings.Workspace, settings.Project, settings.Repository, bitbucket);
 
         var repositoryPaths = (await bitbucketManager.GetRepositoryFilePaths()).ToList();
 
@@ -96,40 +78,30 @@ internal sealed class UpdateRepositoryDependencyCommand : RepositoryDependencyCo
 
         //TODO: We should check if anything was actually updated in project before
         //TODO: Refactor loggers/response from project updater
-        var projectUpdatedDependencies = new List<(Project project, string updatedContent)>(projectPaths.Count);
+        var updatedProjects = new List<UpdatedProject>(projectPaths.Count);
         foreach (var projectPath in projectPaths)
         {
-            var directoryBuildPropsFile = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(repositoryPaths, projectPath);
-            var projectContent = await bitbucketManager.GetFileContentRaw(projectPath);
-            var directoryBuildPropsContent = directoryBuildPropsFile is not null ? await bitbucketManager.GetFileContentRaw(directoryBuildPropsFile) : null;
+            var projectContent = await GetProjectContent(bitbucketManager, projectPath);
+            var directoryBuildPropsContent = await GetDirectoryBuildPropsContent(bitbucketManager, repositoryPaths, projectPath);
+            
             var updatedProject = await projectUpdater.Update(new ProjectUpdater.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent, settings.IncludePrerelease, settings.VersionLock));
          
-            if(updatedProject.UpdatedDependencies.Count == 0) continue;
-            
-            projectUpdatedDependencies.Add(
-                (new Project()
-                {
-                    Name = projectPath, 
-                    
-                    UpdatedDependencies = updatedProject.UpdatedDependencies.Select(x => new Dependency(){Name = x.name, CurrentVersion = x.currentVersion, NewVersion = x.newVersion}).ToList()
-                }, updatedProject.UpdatedContent!));
+            if (updatedProject?.UpdatedDependencies is not {Count: > 0}) continue;
+
+            updatedProjects.Add(updatedProject);
         }
 
-        if (settings.DryRun)
+        if (settings.DryRun || updatedProjects.Count == 0)
         {
             return 0;
         }
 
         var branch = settings.BranchName ?? "sharp-dependency";
-        await bitbucketManager.CreateCommit(branch, settings.CommitMessage ?? "update dependencies", projectUpdatedDependencies.Select(x => (x.project.Name, x.updatedContent)).ToList());
+        var commitMessage = settings.CommitMessage ?? "update dependencies";
+        var pullRequestName = $"[{branch}] pull request";
         
-        var description = new Description()
-        {
-            UpdatedProjects = projectUpdatedDependencies.Select(x => x.project).ToList()
-        };
-        
-        await bitbucketManager.CreatePullRequest(new CreatePullRequest(){Name = $"[{branch}] pull request", SourceBranch = branch, Description = description});
-        
+        await bitbucketManager.CreatePullRequest(pullRequestName, branch, commitMessage, updatedProjects);
+
         return 0;
     }
     
@@ -139,7 +111,7 @@ internal sealed class UpdateRepositoryDependencyCommand : RepositoryDependencyCo
         {
             return ValidationResult.Error($"Setting {nameof(settings.Repository)} must have a value.");
         }
-         
+        
         if (string.IsNullOrEmpty(settings.Project) && string.IsNullOrEmpty(settings.Workspace))
         {
             return ValidationResult.Error($"Neither {nameof(settings.Project)} or {nameof(settings.Workspace)} must have a value (depending of bitbucket type you are using).");

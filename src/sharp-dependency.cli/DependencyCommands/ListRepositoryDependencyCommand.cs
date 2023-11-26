@@ -1,18 +1,14 @@
 ﻿using System.ComponentModel;
 using sharp_dependency.cli.Logger;
+using sharp_dependency.cli.Repositories;
 using sharp_dependency.Logger;
 using sharp_dependency.Parsers;
-using sharp_dependency.Repositories;
-using sharp_dependency.Repositories.Bitbucket;
 using Spectre.Console.Cli;
-using CloudBitbucket = sharp_dependency.cli.Configuration.Bitbucket.CloudBitbucket;
-using ServerBitbucket = sharp_dependency.cli.Configuration.Bitbucket.ServerBitbucket;
-using AppPasswordCredentials = sharp_dependency.cli.Configuration.Bitbucket.BitbucketCredentials.AppPasswordBitbucketCredentials;
-using AccessTokenCredentials = sharp_dependency.cli.Configuration.Bitbucket.BitbucketCredentials.AccessTokenBitbucketCredentials;
 
 namespace sharp_dependency.cli.DependencyCommands;
 
-public class ListRepositoryDependencyCommand : RepositoryDependencyCommandBase<ListRepositoryDependencyCommand.Settings>
+// ReSharper disable ClassNeverInstantiated.Global
+internal sealed class ListRepositoryDependencyCommand : RepositoryDependencyCommandBase<ListRepositoryDependencyCommand.Settings>
 {
     public class Settings : CommandSettings
     {
@@ -55,21 +51,8 @@ public class ListRepositoryDependencyCommand : RepositoryDependencyCommandBase<L
             return 1;
         }
         
-        var bitbucketAddress = bitbucket.ApiAddress;
-        var workspace = settings.Workspace;
-        var project = settings.Project;
-        var repository = settings.Repository;
-        IRepositoryManger bitbucketManager = (bitbucket, bitbucket.Credentials) switch
-        {
-            (CloudBitbucket, null) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace!, repository),
-            (ServerBitbucket, null) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!),
-            (CloudBitbucket, AppPasswordCredentials c) => new BitbucketCloudRepositoryManager( bitbucketAddress, workspace!, repository, (c.UserName, c.AppPassword)),
-            (CloudBitbucket, AccessTokenCredentials c) => new BitbucketCloudRepositoryManager(bitbucketAddress, workspace!, repository, c.Token),
-            (ServerBitbucket, AppPasswordCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!, (c.UserName, c.AppPassword)),
-            (ServerBitbucket, AccessTokenCredentials c) => new BitbucketServerRepositoryManager(bitbucketAddress, repository, project!, c.Token),
-            _ => throw new ArgumentOutOfRangeException()
-        };
-        
+        var bitbucketManager = BitbucketManagerFactory.CreateRepositoryManager(bitbucket.ApiAddress, settings.Workspace, settings.Project, settings.Repository, bitbucket);
+
         var repositoryPaths = (await bitbucketManager.GetRepositoryFilePaths()).ToList();
         
         var projectPaths = await GetProjectPaths(repositoryPaths, bitbucketManager);

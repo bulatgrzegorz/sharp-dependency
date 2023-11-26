@@ -3,6 +3,8 @@ using NuGet.Versioning;
 using SelectiveConditionEvaluator;
 using sharp_dependency.Logger;
 using sharp_dependency.Parsers;
+using sharp_dependency.Repositories;
+using Dependency = sharp_dependency.Parsers.Dependency;
 
 namespace sharp_dependency;
 
@@ -20,7 +22,7 @@ public class ProjectMigrator
         _logger = logger;
     }
 
-    public async Task<UpdateProjectResult> Update(UpdateProjectRequest request)
+    public async Task<UpdatedProject?> Update(UpdateProjectRequest request)
     {
         Guard.ThrowIfNullOrWhiteSpace(request.ProjectContent);
         
@@ -36,11 +38,11 @@ public class ProjectMigrator
         if (projectTargetFrameworks is null or { Count: 0 })
         {
             Log.LogWarn("Could not determine target framework for project: {0}", request.ProjectPath);
-            return new UpdateProjectResult();
+            return null;
         }
         
         _logger.LogProject(request.ProjectPath);
-        var migrationActions = new List<MigrationAction>();
+        var migrationActions = new List<sharp_dependency.Repositories.Dependency>();
         foreach (var dependency in projectFile.Dependencies)
         {
             var migrationInstruction = request.MigrationInstructions.SingleOrDefault(x => x.DependencyName.Equals(dependency.Name, StringComparison.InvariantCultureIgnoreCase));
@@ -58,7 +60,7 @@ public class ProjectMigrator
 
             if (dependency.UpdateVersionIfPossible(allVersions, migrationInstruction.VersionRange, out var newVersion))
             {
-                migrationActions.Add(new MigrationAction(migrationInstruction.DependencyName, dependency.CurrentVersion, newVersion.ToNormalizedString()));
+                migrationActions.Add(new sharp_dependency.Repositories.Dependency(migrationInstruction.DependencyName, dependency.CurrentVersion, newVersion.ToNormalizedString()));
                 _logger.LogDependency(dependency.Name, dependency.CurrentVersion, newVersion.ToNormalizedString());
             }
             else
@@ -69,7 +71,7 @@ public class ProjectMigrator
         
         var updatedProjectContent = await projectFileParser.Generate();
         _logger.Flush();
-        return new UpdateProjectResult(updatedProjectContent, migrationActions);
+        return new UpdatedProject(request.ProjectPath, updatedProjectContent, migrationActions);
     }
     
     private async Task<IReadOnlyCollection<NuGetVersion>> GetPackageVersions(IReadOnlyCollection<string> projectTargetFrameworks, Dependency dependency, bool includePrerelease)
@@ -108,8 +110,6 @@ public class ProjectMigrator
     
     
     public record MigrationInstruction(string DependencyName, VersionRange VersionRange);
-    public record MigrationAction(string DependencyName, string CurrentVersion, string NewVersion);
     
     public readonly record struct UpdateProjectRequest(string ProjectPath, string ProjectContent, string? DirectoryBuildProps, IEnumerable<MigrationInstruction> MigrationInstructions);
-    public readonly record struct UpdateProjectResult(string? UpdatedContent, List<MigrationAction> UpdatedDependencies);
 }

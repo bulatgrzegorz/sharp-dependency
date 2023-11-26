@@ -5,6 +5,12 @@ using sharp_dependency.cli.Logger;
 using sharp_dependency.Logger;
 using Spectre.Console.Cli;
 
+#if DEBUG
+Log.Logger = new AnsiConsoleLogger(AnsiConsoleLogger.LogLevel.Debug);
+#else
+Log.Logger = new AnsiConsoleLogger(AnsiConsoleLogger.LogLevel.Info);
+#endif
+
 var app = new CommandApp();
 app.Configure(config =>
 {
@@ -18,6 +24,7 @@ app.Configure(config =>
     {
         x.AddCommand<ConfigureNugetCommand>("nuget").WithDescription("Create nuget configuration.");
         
+        //TODO: Add default bitbucket settings (workspace/project)
         x.AddCommand<ConfigureCurrentContextCommand>("context").WithDescription("Create current context configuration.");
         x.AddCommand<PrintConfigurationCommand>("get").WithDescription("Print current configuration.");
 
@@ -51,5 +58,6 @@ app.Configure(config =>
     });
 });
 
-Log.Logger = new AnsiConsoleLogger();
+
+
 await app.RunAsync(args);

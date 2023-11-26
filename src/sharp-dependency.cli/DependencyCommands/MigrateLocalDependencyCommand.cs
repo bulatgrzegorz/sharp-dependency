@@ -9,9 +9,9 @@ using Spectre.Console.Cli;
 
 namespace sharp_dependency.cli.DependencyCommands;
 
-internal class MigrateLocalDependencyCommand : LocalDependencyCommandBase<MigrateLocalDependencyCommand.Settings>
+internal sealed class MigrateLocalDependencyCommand : LocalDependencyCommandBase<MigrateLocalDependencyCommand.Settings>
 {
-    private static readonly JsonSerializerOptions CamelCaseJsonSerializerOptions = new JsonSerializerOptions() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly JsonSerializerOptions CamelCaseJsonSerializerOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     
     public sealed class Settings : CommandSettings
     {
@@ -74,14 +74,14 @@ Version should be passed in range format as explained in update-path parameter.
         foreach (var projectPath in projectPaths)
         {
             var directoryBuildPropsPath = DirectoryBuildPropsLookup.GetDirectoryBuildPropsPath(directoryBuildPropsPaths, projectPath, basePath);
-            var directoryBuildPropsContent = directoryBuildPropsPath is not null ? await File.ReadAllTextAsync(projectPath) : null;
+            var directoryBuildPropsContent = directoryBuildPropsPath is not null ? await File.ReadAllTextAsync(directoryBuildPropsPath) : null;
             var projectContent = await File.ReadAllTextAsync(projectPath);
             
             var updatedProject = await projectMigrator.Update(new ProjectMigrator.UpdateProjectRequest(projectPath, projectContent, directoryBuildPropsContent, instructions));
 
-            if(updatedProject.UpdatedDependencies.Count == 0) continue;
+            if (updatedProject?.UpdatedDependencies is not {Count: > 0}) continue;
             
-            if (!settings.DryRun && updatedProject.UpdatedContent is not null)
+            if (!settings.DryRun && updatedProject?.UpdatedContent is not null)
             {
                 await File.WriteAllTextAsync(projectPath, updatedProject.UpdatedContent);
             }
